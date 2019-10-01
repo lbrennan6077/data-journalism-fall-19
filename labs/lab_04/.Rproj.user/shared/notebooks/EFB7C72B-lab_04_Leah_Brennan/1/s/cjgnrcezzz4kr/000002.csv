@@ -1,0 +1,7 @@
+"0",""
+"0","mingo %>%"
+"0","  filter(drug_name == ""HYDROCODONE"") %>%"
+"0","  group_by(buyer_name) %>%"
+"0","  summarise(shipments = n()) %>%"
+"0","  arrange(desc(shipments)) %>%"
+"0","  filter(shipments > 1000)"

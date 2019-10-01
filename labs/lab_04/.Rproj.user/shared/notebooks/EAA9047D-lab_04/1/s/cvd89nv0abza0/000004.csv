@@ -1,0 +1,4 @@
+"0","mingo %>%"
+"0","  group_by(buyer_name) %>%"
+"0","  summarise(pills_per_pharmacy = sum(dosage_unit)) %>%"
+"0","  mutate(total_pills = sum(pills_per_pharmacy))"

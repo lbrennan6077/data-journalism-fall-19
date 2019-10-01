@@ -1,0 +1,5 @@
+"0",""
+"0","mingo_working <- mingo %>%"
+"0","  select(contains(""buyer"")) %>%"
+"0","  unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip) "
+"0",""

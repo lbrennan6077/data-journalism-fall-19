@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1569731299636.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3122270299",
+    "id" : "18A6EEAD",
+    "lastKnownWriteTime" : 1569740507,
+    "last_content_update" : 1569740511447,
+    "path" : "C:/Users/Leah/Desktop/lab_04/lab_04_Leah_Brennan.Rmd",
+    "project_path" : "lab_04_Leah_Brennan.Rmd",
+    "properties" : {
+        "cursorPosition" : "581,1",
+        "last_setup_crc32" : "AEE3B07Fd4872713",
+        "scrollLine" : "568"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

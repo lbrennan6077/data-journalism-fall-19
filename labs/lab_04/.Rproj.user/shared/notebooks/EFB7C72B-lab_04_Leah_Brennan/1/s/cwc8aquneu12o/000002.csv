@@ -1,0 +1,4 @@
+"0",""
+"0","mingo_working <- mingo %>%"
+"0","  mutate(pills_category = if_else(dosage_unit > 10000, ""large shipment"", ""not large shipment""))"
+"0",""

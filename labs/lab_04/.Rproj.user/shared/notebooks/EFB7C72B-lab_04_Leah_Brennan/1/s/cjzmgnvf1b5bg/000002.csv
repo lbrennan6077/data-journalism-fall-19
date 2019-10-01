@@ -1,0 +1,8 @@
+"0",""
+"0","mingo_working <- mingo %>%"
+"0","  mutate(pills_category = case_when("
+"0","    dosage_unit > 10000 ~ ""large shipment"","
+"0","    dosage_unit > 5000 ~ ""medium shipment"","
+"0","    TRUE ~ ""small shipment"")"
+"0","  )"
+"0",""

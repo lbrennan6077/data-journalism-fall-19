@@ -1,0 +1,4 @@
+"0","mingo_working <- mingo %>%"
+"0","  mutate(distributor_dea_no = reporter_dea_no) %>%"
+"0","  select(distributor_dea_no, everything()) %>%"
+"0","  select(-reporter_dea_no)"

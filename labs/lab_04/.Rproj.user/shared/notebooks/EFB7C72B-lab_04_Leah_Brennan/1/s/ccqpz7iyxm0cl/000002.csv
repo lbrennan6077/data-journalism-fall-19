@@ -1,0 +1,6 @@
+"0","mingo %>%"
+"0","  group_by(buyer_name) %>%"
+"0","  summarise(shipments = n()"
+"0","            ) %>%"
+"0","  mutate(shipments_rank = dense_rank(shipments)) %>%"
+"0","  arrange(desc(shipments_rank))"

@@ -1,0 +1,3 @@
+"0","mingo_working <- mingo %>%"
+"0","  mutate(reporter_address_complete = paste0(reporter_address1,"" "", reporter_address2,"" "", reporter_city, "", "", reporter_state, "" "", reporter_zip))  "
+"0",""

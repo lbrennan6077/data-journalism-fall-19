@@ -1,0 +1,3 @@
+"0","mingo_working <- mingo %>%"
+"0","  mutate(buyer_address_complete = paste0(buyer_address1,"" "", buyer_city, "", "", buyer_state, "" "", buyer_zip))    "
+"0",""

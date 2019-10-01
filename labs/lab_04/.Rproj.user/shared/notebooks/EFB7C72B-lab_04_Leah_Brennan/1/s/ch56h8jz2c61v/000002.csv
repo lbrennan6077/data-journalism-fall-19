@@ -1,0 +1,7 @@
+"0","mingo %>%"
+"0","  group_by(buyer_name) %>%"
+"0","  summarise(shipments = n(),"
+"0","            total_pills = sum(dosage_unit), "
+"0","            avg_pills_per_shipment = mean(dosage_unit)"
+"0","            ) %>%"
+"0","  arrange(desc(avg_pills_per_shipment))"

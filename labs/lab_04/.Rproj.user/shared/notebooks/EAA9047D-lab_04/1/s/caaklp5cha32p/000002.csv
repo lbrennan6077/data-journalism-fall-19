@@ -1,0 +1,3 @@
+"0",""
+"0","# use the clean_names function in janitor to "
+"0","mingo <- clean_names(mingo)"
