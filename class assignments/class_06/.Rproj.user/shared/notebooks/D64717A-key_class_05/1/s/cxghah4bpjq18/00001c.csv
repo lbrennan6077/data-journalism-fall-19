@@ -1,0 +1,4 @@
+"0","buyer_annual_by_year %>%"
+"0","  left_join(buyer_addresses, by=""buyer_dea_no"") %>%"
+"0","  filter(year==2010, buyer_state.x ==""MD"", buyer_bus_act.x==""PRACTITIONER"") %>%"
+"0","  arrange(desc(dosage_unit))"
