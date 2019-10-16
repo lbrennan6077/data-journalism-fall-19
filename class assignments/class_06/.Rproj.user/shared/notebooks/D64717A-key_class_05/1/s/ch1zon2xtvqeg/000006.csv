@@ -1,0 +1,5 @@
+"0","# Load state_population_per_year
+state_population_per_year <- read_csv(""data/state_population_by_year.csv"")
+"
+"2","Error: 'data/state_population_by_year.csv' does not exist in current working directory ('/Users/smussend/Desktop/fall19-data-journalism/in_class_assignments/class_05').
+"
