@@ -108,13 +108,55 @@ arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
 
 You should also write up a few sentences explaining the trend in a bit more detail.
 
+```{r}
+logan_county_pills_per_year <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "WV", buyer_county == "LOGAN") %>%
+  select(year, dosage_unit)
+```
+
+```{r}
+  ggplot(logan_county_pills_per_year) +
+  geom_bar(stat="identity", aes(year, dosage_unit), fill="forest green") +
+  labs(x="Year", y="Total pills", title="In Logan County, opioid shipments stay steadily high from 2006 to 2012", subtitle = "Total pills shipped to Logan County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  scale_y_continuous(labels = comma)
+
+#Despite slight dips in 2006 and 2010, opioid shipments stayed steadily high from 2006 to 2012. We might want to look into why they slightly dipped in 2006 and 2010.
+```
+
+
 **Task**: Build an exploratory visualization to show how year-over-year pill totals in Logan County, West Virginia between 2006 and 2012 compare to five other West Virginia counties with high levels of opioid shipments. It should have the following attributes:
   * Chart Type: six "small multiple" bar charts, arranged in a 3 x 2 grid.  There should be one bar chart per county. 
   * Counties: one chart per county for the following counties: Kanawha, Cabell, Mingo, Raleigh, Logan and Wood.
   * Axes: years on the x axis, pill totals on the y axis, with proper axis labels. The number for each year should be shown. Put commas in the pill totals on the y axis, so they're readable. Rotate the year labels so they're readable.    
   * Text: put a descriptive title, subtitle and source line.  The title should describe the main takeaway.
   
+```{r}
+  
+  west_virginia_pills_per_year <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "WV", (buyer_county %in% c("KANAWHA", "CABELL", "MINGO", "RALEIGH","LOGAN", "WOOD"))) %>%
+  select(buyer_county, year, dosage_unit)
+  
+```
+  
+```{r}
+
+  ggplot(west_virginia_pills_per_year) +
+  geom_bar(stat="identity", aes(year, dosage_unit, fill=buyer_county)) +
+  labs(x="Year", y="Total pills", title="Kanawha County claims highest rise in opioid shipments \n among six West Virginia counties", subtitle = "Total pills per year shipped to Kanawha, Cabell, Mingo, \n Raleigh, Logan and Wood counties", caption = "Source: DEA ARCOS database, via Washington Post", fill="County") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(nrow=2, . ~ buyer_county) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill="none")
+
+#Six West Virginia counties show high totals for opioid shipments, but Kanawha County showed the largest increase among them. Mingo saw the most dramatic decrease, beginning in 2010 and continuing through 2012. 
+  
+```
+  
 You should also write up a few sentences explaining the trends in a bit more detail.
+
+
 
 **Task (This one is more challenging)**: Build a scatterplot that explores the relationship between the following two factors for Maryland counties: the pills per person rate (not total pills, but pills per person) for a county in 2012 and the county's median household income in 2012.  
 
@@ -134,7 +176,10 @@ Here's the code you'll need to pull it in.
 
 # Define census api key.  I'm including mine here.  You may need to get your own. https://api.census.gov/data/key_signup.html
 
-census_api_key("549950d36c22ff16455fe196bbbd01d63cfbe6cf")
+library(tidycensus)
+library(tidyverse)
+
+census_api_key("ee9c9f508567df0be614b71a5c58ebbb21cd991b")
 
 # Store a table with the median household income value for each county using the get_acs() function.  ACS is short for American Community Survey, one of two main census products. In the table that's loaded in, the :estimate" is the median household income for that county, averaged over 5 years ending in 2012. 
 
@@ -148,8 +193,55 @@ acs_variables <- load_variables(2012, "acs5", cache = TRUE)
 md_county_median_household_income <- county_median_household_income %>%
   filter(str_detect(NAME, ", Maryland"))
 
+```
+
+```{r}
+
+#the relationship between the following two factors for Maryland counties: the pills per person rate (not total pills, but pills per person) for a county in 2012 and the county's median household income in 2012.  
+
+maryland_county_pills_2012 <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", year=="2012") %>%
+  select(buyer_county, year, dosage_unit, countyfips)
+
+maryland_population_2012 <- county_population(key = key) %>%
+  clean_names() %>%
+  filter(buyer_state == "MD", year=="2012") %>%
+  select(buyer_county, population, countyfips)
+
+maryland_pill_pop_join <- maryland_county_pills_2012 %>%
+  inner_join(maryland_population_2012, by="countyfips")
+
+#Next, per person
+
+maryland_pills_by_person <- maryland_pill_pop_join %>%
+  mutate(maryland_pills_by_person = dosage_unit/population) 
+
+#join by GEOID
+maryland_2012_countyfips <- maryland_pills_by_person %>%
+  inner_join(md_county_median_household_income, by = c("countyfips" = "GEOID"))
+  
 
 ```
+
+```{r}
+# Scatterplot that explores the relationship between the following two factors for Maryland counties: the pills per person rate (not total pills, but pills per person) for a county in 2012 and the county's median household income in 2012.(Not updated)
+
+#It should have the following attributes:
+#* each point labeled with the county name. 
+#* a blue "line of best fit" running through the data showing the trend line.  
+#* a title that explains what you're seeing in the data.  Is there a trend?
+
+ggplot(maryland_2012) +
+  geom_point(aes(population, dosage_unit)) +
+  labs(x="2012 Population", y="Total pills in 2012", title="County population and total opioids in 2012", caption = "Source: DEA ARCOS database, via Washington Post", fill="buyer_county") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(population, dosage_unit), method = "lm", se = FALSE)
+
+  
+```
+
 
 **Task**: Thinking ahead to your final data analysis project, build one exploratory visualization of your own choosing that might help you identify some interesting trend in the data. For many of you, this is a good opportunity to explore the tidycensus package.
 
