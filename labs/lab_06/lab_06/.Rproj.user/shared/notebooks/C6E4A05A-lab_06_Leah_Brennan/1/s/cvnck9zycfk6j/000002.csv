@@ -1,0 +1,5 @@
+"0","west_virginia_population_2012 <- county_population(key = key) %>%"
+"0","  clean_names() %>%"
+"0","  filter(buyer_state == ""WV"", year==""2012"") %>%"
+"0","  select(buyer_county, population)"
+"0",""

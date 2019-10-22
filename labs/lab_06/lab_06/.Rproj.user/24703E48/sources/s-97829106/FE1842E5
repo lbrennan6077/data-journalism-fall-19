@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1571733919977.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "FE1842E5",
+    "lastKnownWriteTime" : 4189037521560761441,
+    "last_content_update" : 1571733919977,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "2FCD10BE",
+        "caption" : "maryland_population_2012",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=maryland_population_2012&cache_key=2FCD10BE",
+        "displayedObservations" : 24,
+        "environment" : "",
+        "expression" : "maryland_population_2012",
+        "object" : "maryland_population_2012",
+        "preview" : 0,
+        "totalObservations" : 24,
+        "variables" : 2
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

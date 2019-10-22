@@ -1,0 +1,4 @@
+"0","west_virginia_2012 <- west_virginia_pills_2012 %>%"
+"0","  inner_join(west_virginia_population_2012, by=(""buyer_county"")) %>%"
+"0","  select(buyer_county, dosage_unit, population)"
+"0",""
