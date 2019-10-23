@@ -117,7 +117,7 @@ logan_county_pills_per_year <- arcos_county_pills_per_year %>%
 ```{r}
   ggplot(logan_county_pills_per_year) +
   geom_bar(stat="identity", aes(year, dosage_unit), fill="forest green") +
-  labs(x="Year", y="Total pills", title="In Logan County, opioid shipments stay steadily high from 2006 to 2012", subtitle = "Total pills shipped to Logan County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
+  labs(x="Year", y="Total pills", title="In Logan County, opioid shipments stay steadily high from \n2006 to 2012", subtitle = "Total pills shipped to Logan County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
   scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
   scale_y_continuous(labels = comma)
 
@@ -196,7 +196,6 @@ md_county_median_household_income <- county_median_household_income %>%
 ```
 
 ```{r}
-
 #the relationship between the following two factors for Maryland counties: the pills per person rate (not total pills, but pills per person) for a county in 2012 and the county's median household income in 2012.  
 
 maryland_county_pills_2012 <- arcos_county_pills_per_year %>%
@@ -224,26 +223,55 @@ maryland_2012_countyfips <- maryland_pills_by_person %>%
 ```
 
 ```{r}
-# Scatterplot that explores the relationship between the following two factors for Maryland counties: the pills per person rate (not total pills, but pills per person) for a county in 2012 and the county's median household income in 2012.(Not updated)
+# Scatterplot that explores the relationship between the following two factors for Maryland counties: the pills per person rate (not total pills, but pills per person) for a county in 2012 and the county's median household income in 2012.
 
 #It should have the following attributes:
 #* each point labeled with the county name. 
 #* a blue "line of best fit" running through the data showing the trend line.  
 #* a title that explains what you're seeing in the data.  Is there a trend?
 
-ggplot(maryland_2012) +
-  geom_point(aes(population, dosage_unit)) +
-  labs(x="2012 Population", y="Total pills in 2012", title="County population and total opioids in 2012", caption = "Source: DEA ARCOS database, via Washington Post", fill="buyer_county") +
+```
+
+```{r}
+
+ggplot(maryland_2012_countyfips) +
+  geom_point(aes(estimate, maryland_pills_by_person)) +
+  labs(x="County's median household income", y="Pills per person rate in 2012", title="Pills per person and median household income\n  held steady in 2012 (despite my cursed line)", caption = "Source: DEA ARCOS database, via Washington Post", fill="buyer_county") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(population, dosage_unit), method = "lm", se = FALSE)
+  geom_smooth(aes(population, dosage_unit), method = "lm", se = FALSE) +
+  geom_text_repel(aes(estimate,maryland_pills_by_person, label=buyer_county.x),
+                  subset(maryland_2012_countyfips, maryland_pills_by_person > 35))
+
+#I worked on this for a while to adjust the axis scales, to no avail. Any tips?
 
   
 ```
 
 
 **Task**: Thinking ahead to your final data analysis project, build one exploratory visualization of your own choosing that might help you identify some interesting trend in the data. For many of you, this is a good opportunity to explore the tidycensus package.
+
+```{r}
+  
+  maryland_pills_per_year <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", (buyer_county %in% c("BALTIMORE CITY", "BALTIMORE"))) %>%
+  select(buyer_county, year, dosage_unit)
+  
+```
+  
+```{r}
+
+  ggplot(maryland_pills_per_year) +
+  geom_bar(stat="identity", aes(year, dosage_unit, fill=buyer_county)) +
+  labs(x="Year", y="Total pills", title="Baltimore County had a steeper proportion of pills\n shipped over six years", subtitle = "Total pills per year shipped to Baltimore City and Baltimore County", caption = "Source: DEA ARCOS database, via Washington Post", fill="County") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  scale_y_continuous(labels = comma) 
+
+
+```
+
+
 
 ## Submission
 
