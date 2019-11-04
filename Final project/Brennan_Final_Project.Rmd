@@ -1,0 +1,237 @@
+---
+title: "Brennan Final Project"
+author: "Leah Brennan"
+date: "11/3/2019"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, paged.print=TRUE)
+```
+
+## Load Packages
+
+```{r}
+
+library(tidyverse)
+library(janitor)
+library(tidycensus)
+library(arcos)
+
+# store an API key as an object called key
+key <- "uO4EK6I"
+
+census_api_key("ee9c9f508567df0be614b71a5c58ebbb21cd991b")
+
+```
+
+## Load Data
+
+I've downloaded the data we'll be using into a folder called "data".  We're going to load it in, using a function called "read_tsv", which is part of the Readr package, which is part of the Tidyverse. [More details on read_tsv function](https://readr.Tidyverse.org/reference/read_delim.html).
+
+Press the green play button to load it in. 
+
+```{r}
+
+baltimore_city <- read_tsv("data/arcos-md-baltimore-city-24510-itemized.tsv")
+baltimore_county <- read_tsv("data/arcos-md-baltimore-24005-itemized.tsv")
+
+
+```
+
+#Observations = rows, variables = columns
+
+## Examine Data
+
+
+```{r}
+
+View(baltimore_city)
+View(baltimore_county)
+
+```
+
+We can also get a sense of the data in a more concise way using the glimpse(function). It's a useful way to examine for flaws: data stored in the wrong format, failure to upload, missing values.
+
+```{r}
+
+glimpse(baltimore_city)
+glimpse(baltimore_county)
+
+```
+
+It tells us the number of observations (rows) and variables (columns).  It prints out all the columns, and tells us what format each one is. <chr> stands for character or text. <dbl> is a type of number.
+
+The summary() function is also useful. For numeric columns, like Dosage Unit (number of pills), it gives us a sense of the smallest (min) and largest (max) values, as well as providing the mean and median.  
+
+```{r}
+
+summary(baltimore_city) 
+summary(baltimore_county)
+
+```
+
+## Clean Data
+
+```{r}
+
+baltimore_city <- clean_names(baltimore_city)
+baltimore_county <- clean_names(baltimore_county)
+
+glimpse(baltimore_city)
+glimpse(baltimore_county)
+
+#pharmacy = buyer, manufacturer = labeler/company
+
+baltimore_city_working <- baltimore_city %>%
+  rename(manufacturer_name = combined_labeler_name)
+
+baltimore_county_working <- baltimore_county %>%
+  rename(manufacturer_name = combined_labeler_name)
+
+#spaces between some columns and commas between others
+
+baltimore_city_working <- baltimore_city %>%
+  select(contains("buyer")) %>%
+  unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip, remove = 'F', sep=" ") 
+
+#I'm putting a space between some columns and a comma between others. 
+
+baltimore_city_working <- baltimore_city %>%
+  mutate(buyer_address_complete = paste0(buyer_address1," ", buyer_city, ", ", buyer_state, " ", buyer_zip)) 
+
+#spaces between some columns and commas between others
+
+
+baltimore_county_working <- baltimore_county %>%
+  select(contains("buyer")) %>%
+  unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip, remove = 'F', sep=" ") 
+
+#I'm putting a space between some columns and a comma between others. 
+
+baltimore_county_working <- baltimore_county %>%
+  mutate(buyer_address_complete = paste0(buyer_address1," ", buyer_city, ", ", buyer_state, " ", buyer_zip))    
+
+
+
+```
+
+## Analyze Data
+
+```{r}
+
+#Question 1
+
+#Which pharmacy location in Baltimore City had the most pills sent to it? How many did it have? 
+
+baltimore_city %>%
+  group_by(buyer_name, buyer_address1, buyer_address2) %>%
+summarise(pills_per_pharmacy = sum(dosage_unit)) %>%
+arrange(desc(pills_per_pharmacy))
+
+#Newcare Home Health Services was the pharmacy location with the most pills sent to it. 6133600 pills. We know this from a previous assignment, but I reran it here to compare with Baltimore County's data.
+  
+
+```
+
+```{r}
+
+#Question 2
+
+#Which pharmacy location in Baltimore County had the most pills sent to it? How many pills did it have?
+
+baltimore_county %>%
+  group_by(buyer_name, buyer_address1, buyer_address2) %>%
+summarise(pills_per_pharmacy = sum(dosage_unit)) %>%
+arrange(desc(pills_per_pharmacy))
+
+#Drug City Pharmacy Inc. was the pharmacy location with the most pills sent to it. 16391690 pills. 
+
+#I thought that Baltimore County would have more pills than the city, so right now, my ideas are on track.
+
+
+```
+
+```{r}
+
+#Question 3
+
+#We actually already have most of the Baltimore City data for the kinds of questions I'm interested in at this point, so I'm going to run some questions on Baltimore County data to compare.
+
+#Which entity had the highest percentage of all pills sent to it in Baltimore County durng the 6-year time frame of ARCOS data?
+
+baltimore_county %>%
+  group_by(buyer_name)%>%
+summarise(pills_per_pharmacy = sum(dosage_unit)) %>%
+  mutate(total_pills =sum(pills_per_pharmacy)) %>%
+    mutate(pharmacy_percent_total_pills =(pills_per_pharmacy/total_pills)*100,2)%>%
+arrange(desc(pills_per_pharmacy))
+
+#Answer: Maryland CVS Pharmacy, with 1.167459e+01 percent.
+
+```
+```{r}
+
+#Question 4
+
+#How do Baltimore City and Baltimore County's dosage units totals compare across the whole time frame?
+
+arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
+  clean_names()
+
+  Baltimore_city_and_county_pills_per_year <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", (buyer_county %in% c("BALTIMORE CITY", "BALTIMORE"))) %>%
+  select(buyer_county, year, dosage_unit)
+  
+  # In 2006: Baltimore County -- 21,894,869
+  # In 2006: Baltimore city -- 21,249,353
+  
+  # In 2007: Baltimore County -- 25,347,218
+  # In 2007: Baltimore city -- 16,362,494
+  
+  # In 2008: Baltimore County -- 27,664,210
+  # In 2008: Baltimore city -- 17,359,135
+  
+  # In 2009: Baltimore County -- 31,383,950
+  # In 2009: Baltimore city -- 18,172,455
+  
+  # In 2010: Baltimore County -- 34,224,000
+  # In 2010: Baltimore city -- 19,642,120
+  
+  # In 2011: Baltimore County -- 36,536,397
+  # In 2011: Baltimore city -- 20,262,816
+    
+  # In 2012: Baltimore County -- 35,372,927
+  # In 2012: Baltimore city -- 20,673,130
+  
+  #They appeared on pace in 2006, but when 2007 hits, you see the disparity start, and continue through 2012, with Baltimore City seeing significantly fewer pill totals than the county. Why is that?
+
+
+```
+
+
+```{r}
+
+county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
+
+acs_variables <- load_variables(2012, "acs5", cache = TRUE)
+
+# Filtering just for Baltimore City and Baltimore County
+#Honestly, not super sure what to do with the census data at this point.
+
+
+
+```
+
+
+## Submission
+
+
+```{r include=FALSE}
+library(spelling)
+spell_check_files("intro_to_r.Rmd")
+```
