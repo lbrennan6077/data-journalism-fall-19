@@ -17,23 +17,31 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, paged.print=TRU
 
 ```{r}
 
+install.packages('tidyverse')
+install.packages('janitor')
+install.packages('tidycensus')
+
+
 library(tidyverse)
 library(janitor)
 library(tidycensus)
 library(arcos)
 
 # store an API key as an object called key
-key <- "uO4EK6I"
-
 census_api_key("ee9c9f508567df0be614b71a5c58ebbb21cd991b")
+
+# Looking up variables:
+acs_variables <- load_variables(2017, "acs5" )
+
+county_geodata <- get_acs(geography = "county",
+              variables = "B19013_001")
+state_geodata <- get_acs(geography = "state",
+              variables = "B01001_001", geometry = TRUE)
 
 ```
 
 ## Load Data
 
-I've downloaded the data we'll be using into a folder called "data".  We're going to load it in, using a function called "read_tsv", which is part of the Readr package, which is part of the Tidyverse. [More details on read_tsv function](https://readr.Tidyverse.org/reference/read_delim.html).
-
-Press the green play button to load it in. 
 
 ```{r}
 
@@ -59,14 +67,11 @@ We can also get a sense of the data in a more concise way using the glimpse(func
 
 ```{r}
 
-glimpse(baltimore_city)
-glimpse(baltimore_county)
+#glimpse(baltimore_city)
+#glimpse(baltimore_county)
 
 ```
 
-It tells us the number of observations (rows) and variables (columns).  It prints out all the columns, and tells us what format each one is. <chr> stands for character or text. <dbl> is a type of number.
-
-The summary() function is also useful. For numeric columns, like Dosage Unit (number of pills), it gives us a sense of the smallest (min) and largest (max) values, as well as providing the mean and median.  
 
 ```{r}
 
@@ -213,8 +218,71 @@ arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
 
 ```
 
+```{r}
+
+#Question 5
+
+#Which distributor claimed the most pills in Baltimore City over the time span? How many did it have? 
+
+baltimore_city %>%
+  group_by(REPORTER_NAME, REPORTER_ADDRESS1, REPORTER_ADDRESS2) %>%
+summarise(pills_per_distributor = sum(DOSAGE_UNIT)) %>%
+arrange(desc(pills_per_distributor))
+
+#McKesson Drug Company claimed the highest amount of pills with 49,834,830.
+
+```
 
 ```{r}
+
+#Question 6
+
+#Which distributor claimed the most pills in Baltimore County over the time span? How many did it have? 
+
+baltimore_county %>%
+  group_by(REPORTER_NAME, REPORTER_ADDRESS1, REPORTER_ADDRESS2) %>%
+summarise(pills_per_distributor = sum(DOSAGE_UNIT)) %>%
+arrange(desc(pills_per_distributor))
+
+#Also McKesson, with 70,552,540 pills. Why is it so much higher?
+```
+
+```{r}
+# Store a table with the median household income value for each county using the get_acs() function.
+county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
+
+acs_variables <- load_variables(2012, "acs5", cache = TRUE)
+# Filter just for Maryland counties
+md_county_median_household_income <- county_median_household_income %>%
+  filter(str_detect(NAME, ", Maryland"))
+
+```
+
+```{r}
+
+#Questions I want to touch on:
+
+#Find pills per person for county and U.S. (demographics, median household)
+#scatterplot
+#For U.S., 
+
+#1) Which areas in the city have the greatest amounts of pills flowing through? The least?
+
+#2) What’s the income level like in those areas?
+
+#3) What’s the racial breakdown of those areas?
+
+#4) How does the amount of pills compare to the nationwide totals?
+
+#5) What’s the average income in the nation, and how does that relate to the influx of opioids?
+
+#6) What’s the racial breakdown of the nation, and how does that relate to the influx of opioids?
+
+#7) Which pharmacies have the greatest amounts of opioids (in the city, and nationally)? (Repeat for highs/lows for distributors and manufacturers)
+
+#8) Which chains — from manufacturer to buyer to distributor — claim the most opioids locally? How does this compare nationally?
+
+ 
 
 county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
 
