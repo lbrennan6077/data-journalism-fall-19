@@ -291,7 +291,7 @@ acs_variables <- load_variables(2012, "acs5", cache = TRUE)
 # Filtering just for Baltimore City and Baltimore County
 #Honestly, not super sure what to do with the census data at this point.
 
-
+ 
 
 ```
 
