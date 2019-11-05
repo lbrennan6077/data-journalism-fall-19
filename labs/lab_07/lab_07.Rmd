@@ -379,7 +379,7 @@ state_geodata_shifted %>%
   ggplot(aes(fill = estimate)) +
   geom_sf(lwd = 0) +
   theme_map() +
-  labs(fill='Population',title="Enter title here", subtitle = "2009 population, U.S. Census", caption = "Source: U.S. Census ACS") +
+  labs(fill='Population',title="Texas and California claim largest populations", subtitle = "2009 population, U.S. Census", caption = "Source: U.S. Census ACS") +
   theme(legend.position="right") +
   scale_fill_viridis_c(option = "magma",labels = comma)
 
@@ -448,7 +448,21 @@ geo_pills_population_state %>%
 
 ```{r}
 
-# Map Code Here
+county_pills_population_in_2009 <- pills_population %>%
+  group_by(countyfips, buyer_state, year) %>%
+  filter(year==2009) %>%
+  summarise(total_pills=sum(dosage_unit, na.rm = TRUE),
+            total_population=sum(population, na.rm=TRUE)) %>%
+  mutate(pills_per_person=total_pills/total_population)%>%
+  filter(pills_per_person != "Inf") %>%
+  filter(pills_per_person != "NaN")
+
+population_county_2009_geo_pills <- county_geodata_shifted %>%
+ inner_join(county_pills_population_in_2009, by=c("GEOID" = "countyfips"))
+
+mapview(population_county_2009_geo_pills, zcol = "pills_per_person", legend = TRUE)
+
+#My findings: In the southern part of the U.S., there's some sections that are particularly dark, indicating there's high opioid influx per person. And it's possible it just looks lighter because the states are larger/less covered up by lines in the West, but it appears there's largely fewer opioids per person there.
 
 ```
 
@@ -456,7 +470,26 @@ geo_pills_population_state %>%
 
 
 ```{r}
-# map code here
+md_pills_population_counties <- pills_population %>%
+  filter(buyer_state=="MD") %>%
+  group_by(countyfips, year) %>%
+  summarise(total_pills=sum(dosage_unit, na.rm = TRUE),
+            total_population=sum(population, na.rm=TRUE)) %>%
+  mutate(pills_per_person=total_pills/total_population)
+
+
+geo_pills_md_pills_population_counties <- county_geodata_shifted %>%
+ inner_join(md_pills_population_counties, by=c("GEOID" = "countyfips"))
+geo_pills_md_pills_population_counties %>%
+  ggplot(aes(fill = pills_per_person)) +
+  facet_wrap(~year, nrow=2) +
+  geom_sf(lwd = 0) +
+  theme_map() +
+  labs(fill='Pills per Person',title="Pills influx per year indicates highs in 2009, 2010", subtitle = "Opioids per person in each county from 2006 to 2012", caption = "Source: ARCOS database, Washington Post") +
+  theme(legend.position="bottom") +
+  scale_fill_viridis_c(option = "plasma",labels = comma)
+
+#2009 and 2010 appear to be the years with the highest amount of opioids per person (the most bright spots on the map). The northern and eastern parts of the state seem most affected over time. 
 
 ```
 
