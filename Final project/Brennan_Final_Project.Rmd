@@ -256,6 +256,22 @@ acs_variables <- load_variables(2012, "acs5", cache = TRUE)
 md_county_median_household_income <- county_median_household_income %>%
   filter(str_detect(NAME, ", Maryland"))
 
+white <- get_acs(geography = "county", variables = c("B02001_002"), survey= "acs5", year = 2012, summary_var = "B01001_001")
+
+employment <- get_acs(geography = "county", variables = c("C18120_003"), survey= "acs5", year = 2012, summary_var = "C18120_002")
+
+unemployment <- get_acs(geography = "county", variables = c("C18120_006"), survey= "acs5", year = 2012, summary_var = "C18120_002") %>%
+  mutate(unemployment_rate=estimate/summary_est *100)
+
+#total employed labor force= C18120_003
+#total labor force unemployed = 	C18120_006
+
+#Unemployment code: B27011_008
+#Employment code: B27011_003
+#White: B02001_002
+#summary_var
+# sex by age: B01001_001
+#subrract from summary_est for total difference
 ```
 
 ```{r}
@@ -282,6 +298,9 @@ md_county_median_household_income <- county_median_household_income %>%
 
 #8) Which chains — from manufacturer to buyer to distributor — claim the most opioids locally? How does this compare nationally?
 
+
+#Bigger, populated urban areas, counties.National, non-white race with per person opioid use. City: pills per person, percentage non-white.
+
  
 
 county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
@@ -290,6 +309,10 @@ acs_variables <- load_variables(2012, "acs5", cache = TRUE)
 
 # Filtering just for Baltimore City and Baltimore County
 #Honestly, not super sure what to do with the census data at this point.
+#assign to county for metro categories, per person rate, compare counties
+#join RUCC with pills per person by county, join on the #fips
+# group by rucc, calculate average
+# 9 buckets
 
  
 
