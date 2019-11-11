@@ -17,9 +17,10 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, paged.print=TRU
 
 ```{r}
 
-install.packages('tidyverse')
-install.packages('janitor')
-install.packages('tidycensus')
+#install.packages('tidyverse')
+#install.packages('janitor')
+#install.packages('tidycensus')
+#install.packages('arcos')
 
 
 library(tidyverse)
@@ -29,6 +30,7 @@ library(arcos)
 
 # store an API key as an object called key
 census_api_key("ee9c9f508567df0be614b71a5c58ebbb21cd991b")
+key <- "uO4EK6I"
 
 # Looking up variables:
 acs_variables <- load_variables(2017, "acs5" )
@@ -38,12 +40,77 @@ county_geodata <- get_acs(geography = "county",
 state_geodata <- get_acs(geography = "state",
               variables = "B01001_001", geometry = TRUE)
 
+arcos_county_population_per_year <- county_population(key = key) %>%
+  clean_names()
+
+arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
+  clean_names()
+
 ```
 
-## Load Data
+```{r}
 
+
+# Make a dataframe that includes dosage unit information per census tract per year for Baltimore County, along with income per tract per year.
+
+balco_tract_income <- get_acs(geography = "tract", state="MD", county="Baltimore County", variables = "B19019_001", geometry = TRUE)
+
+balco_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
+
+balco_annual_buyer <- combined_buyer_annual(county = "Baltimore", state = "MD", key = key)
+
+balco_tract_data_working <- inner_join(balco_annual_buyer, balco_tract, by="BUYER_DEA_NO")
+
+balco_tract_data_working <- inner_join(balco_tract_data_working, balco_tract_income, by =c("GEOID"))
+
+balco_tract_data_working <- clean_names(balco_tract_data_working)
+
+
+```
 
 ```{r}
+
+# Remove unecessary columns.
+
+balco_tract_data_working <-
+  subset(balco_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe, geometry))
+
+
+```
+
+```{r}
+
+# Make a dataframe that includes dosage unit information per census tract per year for Baltimore City, along with income per tract per year.
+
+
+balcity_tract_income <- get_acs(geography = "tract", state="MD", county="Baltimore City", variables = "B19019_001", geometry = TRUE)
+
+balcity_tract <- pharm_tracts(county = "Baltimore City", state = "MD", key = key)
+
+balcity_annual_buyer <- combined_buyer_annual(county = "Baltimore City", state = "MD", key = key)
+
+balcity_tract_data_working <- inner_join(balcity_annual_buyer, balcity_tract, by="BUYER_DEA_NO")
+
+balcity_tract_data_working <- inner_join(balcity_tract_data_working, balcity_tract_income, by =c("GEOID"))
+
+balcity_tract_data_working <- clean_names(balcity_tract_data_working)
+
+
+```
+
+```{R}
+
+# Remove unecessary columns.
+
+balcity_tract_data_working <-
+  subset(balcity_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe, geometry))
+
+
+```
+
+```{r}
+
+# Load full pipeline data for Baltimore City and Baltimore County. Unsure if it's necessary, but it's here now.
 
 baltimore_city <- read_tsv("data/arcos-md-baltimore-city-24510-itemized.tsv")
 baltimore_county <- read_tsv("data/arcos-md-baltimore-24005-itemized.tsv")
@@ -51,44 +118,12 @@ baltimore_county <- read_tsv("data/arcos-md-baltimore-24005-itemized.tsv")
 
 ```
 
-#Observations = rows, variables = columns
-
-## Examine Data
-
-
 ```{r}
 
-View(baltimore_city)
-View(baltimore_county)
-
-```
-
-We can also get a sense of the data in a more concise way using the glimpse(function). It's a useful way to examine for flaws: data stored in the wrong format, failure to upload, missing values.
-
-```{r}
-
-#glimpse(baltimore_city)
-#glimpse(baltimore_county)
-
-```
-
-
-```{r}
-
-summary(baltimore_city) 
-summary(baltimore_county)
-
-```
-
-## Clean Data
-
-```{r}
+# Clean up all the data that we just loaded (the data that I'm not sure is even necessary).
 
 baltimore_city <- clean_names(baltimore_city)
 baltimore_county <- clean_names(baltimore_county)
-
-glimpse(baltimore_city)
-glimpse(baltimore_county)
 
 #pharmacy = buyer, manufacturer = labeler/company
 
@@ -102,7 +137,7 @@ baltimore_county_working <- baltimore_county %>%
 
 baltimore_city_working <- baltimore_city %>%
   select(contains("buyer")) %>%
-  unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip, remove = 'F', sep=" ") 
+ unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip, remove = 'F', sep=" ") 
 
 #I'm putting a space between some columns and a comma between others. 
 
@@ -121,25 +156,30 @@ baltimore_county_working <- baltimore_county %>%
 baltimore_county_working <- baltimore_county %>%
   mutate(buyer_address_complete = paste0(buyer_address1," ", buyer_city, ", ", buyer_state, " ", buyer_zip))    
 
-
-
 ```
-
-## Analyze Data
 
 ```{r}
 
+balco_tract_data_working_2008 <- balco_tract_data_working %>%
+  filter(year=="2008")
+
+```
+
+```{r}
+
+# All right, starting off, I want to examine the highs and lows, comparing the city and the county, to get a sense of the data sets we'll be working with. My end goal is to examine how Baltimore County and City data compares to the national trends by income, race and opioid use. I've heard 2008 was the peak of the crisis, so I'm going to start by exploring some possible trends there.
+
 #Question 1
 
-#Which pharmacy location in Baltimore City had the most pills sent to it? How many did it have? 
+#How large were the biggest shipments for Baltimore County in 2008?
 
-baltimore_city %>%
-  group_by(buyer_name, buyer_address1, buyer_address2) %>%
-summarise(pills_per_pharmacy = sum(dosage_unit)) %>%
-arrange(desc(pills_per_pharmacy))
+balco_tract_data_working_2008 <- balco_tract_data_working_2008 %>%
+  mutate(pills_category = case_when(
+         dosage_unit > 10000 ~ "big shipment",
+         dosage_unit < 5000 ~ "midsize shipment",
+         TRUE ~ "small shipment"))
 
-#Newcare Home Health Services was the pharmacy location with the most pills sent to it. 6133600 pills. We know this from a previous assignment, but I reran it here to compare with Baltimore County's data.
-  
+#1,914,740 is the highest result, followed by 1,160,400 and 801,400. Okay, that seems pretty high. I wonder how it compares to Baltimore City. 
 
 ```
 
@@ -147,182 +187,301 @@ arrange(desc(pills_per_pharmacy))
 
 #Question 2
 
-#Which pharmacy location in Baltimore County had the most pills sent to it? How many pills did it have?
+#For Baltimore County: Where did those highest pill counts go in 2008?
 
-baltimore_county %>%
-  group_by(buyer_name, buyer_address1, buyer_address2) %>%
-summarise(pills_per_pharmacy = sum(dosage_unit)) %>%
-arrange(desc(pills_per_pharmacy))
-
-#Drug City Pharmacy Inc. was the pharmacy location with the most pills sent to it. 16391690 pills. 
-
-#I thought that Baltimore County would have more pills than the city, so right now, my ideas are on track.
-
-
+view(balco_tract_data_working)
+  
+#The first tract is 420100, the second is 451200 and the third is 492200. I don't have a great idea of where this is yet, but that'll be easy enough to figure out later on.
+  
 ```
 
 ```{r}
 
 #Question 3
 
-#We actually already have most of the Baltimore City data for the kinds of questions I'm interested in at this point, so I'm going to run some questions on Baltimore County data to compare.
+#All right, so that comparison. How large were the biggest shipments for Baltimore City in 2008?
 
-#Which entity had the highest percentage of all pills sent to it in Baltimore County durng the 6-year time frame of ARCOS data?
+balcity_tract_data_working_2008 <- balcity_tract_data_working %>%
+  filter(year=="2008")
 
-baltimore_county %>%
-  group_by(buyer_name)%>%
-summarise(pills_per_pharmacy = sum(dosage_unit)) %>%
-  mutate(total_pills =sum(pills_per_pharmacy)) %>%
-    mutate(pharmacy_percent_total_pills =(pills_per_pharmacy/total_pills)*100,2)%>%
-arrange(desc(pills_per_pharmacy))
+#balcity_tract_data_working_2008 <- balcity_tract_data_working_2008
+        #mutate(pills_category = case_when(
+          #dosage_unit > 10000 ~ "big shipment",
+          #dosage_unit < 5000 ~ "midsize shipment",
+          #TRUE ~ "small shipment"))
 
-#Answer: Maryland CVS Pharmacy, with 1.167459e+01 percent.
+#The biggest shipments were for 788,400, 467,840 and 445,600 pills. So, lower than Baltimore County's totals -- but why? Our analysis later on for income, race and opioid use will be helpful for trying to answer this.
+
+# (Side note: It wouldn't let me knit unless I commented this part out, so I'm doing that for the time being.)
 
 ```
+
+
 ```{r}
 
 #Question 4
 
-#How do Baltimore City and Baltimore County's dosage units totals compare across the whole time frame?
+#For Baltimore City in 2008: Where did they go?
 
-arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
-  clean_names()
+view(balcity_tract_data_working_2008)
 
-  Baltimore_city_and_county_pills_per_year <- arcos_county_pills_per_year %>%
-  filter(buyer_state == "MD", (buyer_county %in% c("BALTIMORE CITY", "BALTIMORE"))) %>%
-  select(buyer_county, year, dosage_unit)
-  
-  # In 2006: Baltimore County -- 21,894,869
-  # In 2006: Baltimore city -- 21,249,353
-  
-  # In 2007: Baltimore County -- 25,347,218
-  # In 2007: Baltimore city -- 16,362,494
-  
-  # In 2008: Baltimore County -- 27,664,210
-  # In 2008: Baltimore city -- 17,359,135
-  
-  # In 2009: Baltimore County -- 31,383,950
-  # In 2009: Baltimore city -- 18,172,455
-  
-  # In 2010: Baltimore County -- 34,224,000
-  # In 2010: Baltimore city -- 19,642,120
-  
-  # In 2011: Baltimore County -- 36,536,397
-  # In 2011: Baltimore city -- 20,262,816
-    
-  # In 2012: Baltimore County -- 35,372,927
-  # In 2012: Baltimore city -- 20,673,130
-  
-  #They appeared on pace in 2006, but when 2007 hits, you see the disparity start, and continue through 2012, with Baltimore City seeing significantly fewer pill totals than the county. Why is that?
-
+#They went to tracts 260402, 240300 and 271700. Again, we'll figure out location specifics a little later on.
 
 ```
+
+
 
 ```{r}
 
 #Question 5
 
-#Which distributor claimed the most pills in Baltimore City over the time span? How many did it have? 
+#To continue to get a better sense of the data: What are the annual pill totals per year for Baltimore County?
 
-baltimore_city %>%
-  group_by(REPORTER_NAME, REPORTER_ADDRESS1, REPORTER_ADDRESS2) %>%
-summarise(pills_per_distributor = sum(DOSAGE_UNIT)) %>%
-arrange(desc(pills_per_distributor))
 
-#McKesson Drug Company claimed the highest amount of pills with 49,834,830.
+balco_yearly_pills <- summarized_county_annual(county="Baltimore", state="MD", key = key)
+
+# In 2006 -- 21,894,869
+# In 2007 -- 25,347,218
+# In 2008 -- 27,664,210
+# In 2009 -- 31,383,950
+# In 2010 -- 34,224,000
+# In 2011 -- 36,536,397
+# In 2012 -- 35,372,927
+
+#All right, that's a pretty steep increase.
+
 
 ```
+
 
 ```{r}
 
 #Question 6
 
-#Which distributor claimed the most pills in Baltimore County over the time span? How many did it have? 
+#What are the annual pill totals per year for Baltimore City?
 
-baltimore_county %>%
-  group_by(REPORTER_NAME, REPORTER_ADDRESS1, REPORTER_ADDRESS2) %>%
-summarise(pills_per_distributor = sum(DOSAGE_UNIT)) %>%
-arrange(desc(pills_per_distributor))
 
-#Also McKesson, with 70,552,540 pills. Why is it so much higher?
+balcity_yearly_pills <- summarized_county_annual(county="Baltimore City", state="MD", key = key)
+
+#In 2006 -- 21,249,353
+#In 2007 -- 16,362,494
+#In 2008 -- 17,359,135
+#In 2009 -- 18,172,455
+#In 2010 -- 19,642,120
+#In 2011 -- 20,262,816
+#In 2012 -- 20,673,130
+
+
+#...and Baltimore City's data is not that steep of an increase. Interesting.
+
+
+```
+
+``` {r}
+
+#Question 7
+
+#Which data tracts have the highest and lowest incomes in Baltimore County?
+
+view(balco_tract_income)
+
+#The highest incomes were in the high hundreds of thousands -- 198158, 167069 and 158908 -- while the lows were all below 40K (11190, 26402 and 35022).
+
+# Later, I want to identify how this correlates to opioid use. Does our assumption that richer people have greater opioid use hold true in Baltimore County?
+
+
+```
+
+
+``` {r}
+
+#Question 8
+
+#Which data tracts have the highest and lowest incomes in Baltimore City?
+
+view(balcity_tract_income)
+
+#The highest incomes were also in the high hundreds of thousands -- 209167, 145966 and 	137275 -- while the lows were all below 15K (14452, 14520 and 14707).
+
+#Wondering about the relationship here as well -- do higher incomes = higher opioid use in Baltimore City?
+
+```
+
+
+```{r}
+
+#Question 9
+
+#What's the pills per person breakdown in Baltimore County in 2008?
+
+balco_2008_pills_per_person <- arcos_county_pills_per_year %>%
+  filter(year=="2008") %>%
+  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
+  mutate(pills_per_person = (dosage_unit/population))
+
+balco_2008_pills_per_person <- balco_2008_pills_per_person %>%
+  filter(buyer_county.x=="BALTIMORE")
+  
+#The average pills per person in Baltimore County in 2008 is 34.63867 pills.
+
+#I don't have a great sense of how much this is until I find what Baltimore City has, and compare across years.
+
+
+```
+
+
+```{r}
+
+#Question  10
+
+#What's the pills per person breakdown in Baltimore City in 2008?
+
+balcity_2008_pills_per_person <- arcos_county_pills_per_year %>%
+  filter(year=="2008") %>%
+  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
+  mutate(pills_per_person = (dosage_unit/population))
+
+balcity_2008_pills_per_person <- balcity_2008_pills_per_person %>%
+  filter(buyer_county.x=="BALTIMORE CITY")
+
+#The average pills per person in Baltimore City in 2008 is 27.9903 pills. Hm, that's a bit lower. Let's see how they compare over time, because the disparity seems a little odd if they used to be close in number.
+
+
 ```
 
 ```{r}
-# Store a table with the median household income value for each county using the get_acs() function.
-county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
 
-acs_variables <- load_variables(2012, "acs5", cache = TRUE)
-# Filter just for Maryland counties
-md_county_median_household_income <- county_median_household_income %>%
-  filter(str_detect(NAME, ", Maryland"))
+#Question 11
 
-white <- get_acs(geography = "county", variables = c("B02001_002"), survey= "acs5", year = 2012, summary_var = "B01001_001")
+#What does that look like over the course of multiple years, though? Let's take off the year filter. For Baltimore County:
 
-employment <- get_acs(geography = "county", variables = c("C18120_003"), survey= "acs5", year = 2012, summary_var = "C18120_002")
+balco_pills_per_person <- arcos_county_pills_per_year %>%
+  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
+  mutate(pills_per_person = (dosage_unit/population))
 
-unemployment <- get_acs(geography = "county", variables = c("C18120_006"), survey= "acs5", year = 2012, summary_var = "C18120_002") %>%
-  mutate(unemployment_rate=estimate/summary_est *100)
+balco_pills_per_person <- balco_pills_per_person %>%
+  filter(buyer_county.x=="BALTIMORE")
 
-#total employed labor force= C18120_003
-#total labor force unemployed = 	C18120_006
+#2006 -- 27.58468 pills per person
+#2007 -- 31.84032 pills per person
+#2008 -- 34.63867 pills per person
+#2009 -- 39.89331 pills per person
+#2010 -- 42.82309 pills per person
+#2011 -- 45.52896 pills per person
+#2012 -- 43.81536 pills per person
 
-#Unemployment code: B27011_008
-#Employment code: B27011_003
-#White: B02001_002
-#summary_var
-# sex by age: B01001_001
-#subrract from summary_est for total difference
+#Here, the low is in 2006, and then it continued to rise through 2012. Okay, now let's look at city data.
+
+
+
 ```
 
 ```{r}
 
-#Questions I want to touch on:
+#Question 12
 
-#Find pills per person for county and U.S. (demographics, median household)
-#scatterplot
-#For U.S., 
-
-#1) Which areas in the city have the greatest amounts of pills flowing through? The least?
-
-#2) What’s the income level like in those areas?
-
-#3) What’s the racial breakdown of those areas?
-
-#4) How does the amount of pills compare to the nationwide totals?
-
-#5) What’s the average income in the nation, and how does that relate to the influx of opioids?
-
-#6) What’s the racial breakdown of the nation, and how does that relate to the influx of opioids?
-
-#7) Which pharmacies have the greatest amounts of opioids (in the city, and nationally)? (Repeat for highs/lows for distributors and manufacturers)
-
-#8) Which chains — from manufacturer to buyer to distributor — claim the most opioids locally? How does this compare nationally?
+#Same question, but for Baltimore City:
 
 
-#Bigger, populated urban areas, counties.National, non-white race with per person opioid use. City: pills per person, percentage non-white.
+balcity_pills_per_person <- arcos_county_pills_per_year %>%
+  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
+  mutate(pills_per_person = (dosage_unit/population))
 
- 
+balcity_pills_per_person <- balcity_pills_per_person %>%
+  filter(buyer_county.x=="BALTIMORE CITY")
 
-county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
+#2006 -- 34.21195 pills per person
+#2007 -- 26.37810 pills per person
+#2008 -- 27.99030 pills per person
+#2009 -- 28.42391 pills per person
+#2010 -- 31.65337 pills per person
+#2011 -- 32.67090 pills per person
+#2012 -- 33.30916 pills per person
 
-acs_variables <- load_variables(2012, "acs5", cache = TRUE)
+#So opioids per person spiked in 2006 here, then decreased, and then stabilized, not increasing much more. Weird. 
 
-# Filtering just for Baltimore City and Baltimore County
-#Honestly, not super sure what to do with the census data at this point.
-#assign to county for metro categories, per person rate, compare counties
-#join RUCC with pills per person by county, join on the #fips
-# group by rucc, calculate average
-# 9 buckets
 
- 
+```
+
+```{r}
+
+#Question 13
+
+#Can we make a ggplot to visualize the Baltimore County data a little better? Let's see.
+
+  ggplot(balco_pills_per_person) +
+  geom_bar(stat="identity", aes(year, pills_per_person), fill="royal blue") +
+  labs(x="Year", y="Total pills", title="Pills steadily raise, peak in 2011 for Baltimore County", subtitle = "Total pills shipped to Baltimore County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  scale_y_continuous()
+
+#Yep. Pills peaked in 2011, but you can see a little more clearly how the shipments raised over time leading up to it.
+
+```
+
+```{r}
+
+#Question 14
+
+#What about Baltimore City? What sort of trends can we visualize with a ggplot?
+
+  ggplot(balcity_pills_per_person) +
+  geom_bar(stat="identity", aes(year, pills_per_person), fill="royal blue") +
+  labs(x="Year", y="Total pills", title="Pills highest in Baltimore City during 2006, then dip before stabilizing", subtitle = "Total pills shipped to Baltimore County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  scale_y_continuous()
+
+#No crazy findings from that, but it does help to see how drastic those changes are, given that we're dealing with some pretty large numbers for both data sets. 
+
+```
+
+```{r}
+
+#Question 15
+
+#What sort of trends do we notice when the data is grouped together visually?
+
+#First, let's make a statewide set so Baltimore City and County data are together.
+
+arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
+  clean_names()
+
+maryland_pills_per_year <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", (buyer_county %in% c("BALTIMORE CITY", "BALTIMORE"))) %>%
+  select(buyer_county, year, dosage_unit)
+
+
+  ggplot(maryland_pills_per_year) +
+  geom_bar(stat="identity", aes(year, dosage_unit, fill=buyer_county)) +
+  labs(x="Year", y="Total pills", title="Opioids see more dramatic rise in Baltimore County than Baltimore City", subtitle = "Total pills per year shipped to Baltimore County and Baltimore City", caption = "Source: DEA ARCOS database, via Washington Post", fill="County") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  facet_wrap(nrow=2, . ~ buyer_county) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill="none")
+  
+  #Baltimore County appears to be almost double 2009 totals for the city. The increase over time in the county is more apparent than in the city. Still, the number of opioids seems noteworthy in both areas. 
+  
+  #This provides a pretty good foundation for our next steps -- comparing to national trends, and identifying which factors may be correlated with these changes. That's all for now, but I'm excited to see what's behind these differences. 
+
 
 ```
 
 
-## Submission
 
 
-```{r include=FALSE}
-library(spelling)
-spell_check_files("intro_to_r.Rmd")
-```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
