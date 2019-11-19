@@ -467,6 +467,28 @@ maryland_pills_per_year <- arcos_county_pills_per_year %>%
 ```
 
 
+```{r}
+
+#Question 16
+
+#All right, time to get to the fun stuff
+
+#Let's join median household income data and 
+
+BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore",
+             variables = "B19019_001", geometry = TRUE)
+BalCo_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
+moco_annual_buyer <- combined_buyer_annual(county = "Baltimore", state = "MD", key = key)
+BalCo_income_by_tract <- inner_join(BalCo_annual_buyer, moco_tract, by="BUYER_DEA_NO")
+BalCo_income_by_tract <- inner_join(BalCo_income_by_tract, , by = "GEOID")
+
+
+
+
+
+```
+
+
 
 
 
