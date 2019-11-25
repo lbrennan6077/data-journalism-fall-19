@@ -21,12 +21,14 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, paged.print=TRU
 #install.packages('janitor')
 #install.packages('tidycensus')
 #install.packages('arcos')
+install.packages('corrr')
 
 
 library(tidyverse)
 library(janitor)
 library(tidycensus)
 library(arcos)
+library(corrr)
 
 # store an API key as an object called key
 census_api_key("ee9c9f508567df0be614b71a5c58ebbb21cd991b")
@@ -53,7 +55,7 @@ arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
 
 # Make a dataframe that includes dosage unit information per census tract per year for Baltimore County, along with income per tract per year.
 
-balco_tract_income <- get_acs(geography = "tract", state="MD", county="Baltimore County", variables = "B19019_001", geometry = TRUE)
+balco_tract_income <- get_acs(geography = "county", state="MD", county = "Baltimore County", variables = "B19019_001", geometry = FALSE)
 
 balco_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
 
@@ -73,7 +75,7 @@ balco_tract_data_working <- clean_names(balco_tract_data_working)
 # Remove unecessary columns.
 
 balco_tract_data_working <-
-  subset(balco_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe, geometry))
+  subset(balco_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe))
 
 
 ```
@@ -83,7 +85,7 @@ balco_tract_data_working <-
 # Make a dataframe that includes dosage unit information per census tract per year for Baltimore City, along with income per tract per year.
 
 
-balcity_tract_income <- get_acs(geography = "tract", state="MD", county="Baltimore City", variables = "B19019_001", geometry = TRUE)
+balcity_tract_income <- get_acs(geography = "tract", state="MD", county="Baltimore City", variables = "B19019_001", geometry = FALSE)
 
 balcity_tract <- pharm_tracts(county = "Baltimore City", state = "MD", key = key)
 
@@ -103,7 +105,7 @@ balcity_tract_data_working <- clean_names(balcity_tract_data_working)
 # Remove unecessary columns.
 
 balcity_tract_data_working <-
-  subset(balcity_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe, geometry))
+  subset(balcity_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe))
 
 
 ```
@@ -112,8 +114,8 @@ balcity_tract_data_working <-
 
 # Load full pipeline data for Baltimore City and Baltimore County. Unsure if it's necessary, but it's here now.
 
-baltimore_city <- read_tsv("data/arcos-md-baltimore-city-24510-itemized.tsv")
-baltimore_county <- read_tsv("data/arcos-md-baltimore-24005-itemized.tsv")
+baltimore_city <- county_raw(key=key, state= "MD", county= "Baltimore City")
+baltimore_county <- county_raw(key=key, state= "MD", county= "Baltimore")
 
 
 ```
@@ -473,20 +475,102 @@ maryland_pills_per_year <- arcos_county_pills_per_year %>%
 
 #All right, time to get to the fun stuff
 
-#Let's join median household income data and 
+#Let's join median household income data from tidycensus with geography data from ARCOS 
 
-BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore",
-             variables = "B19019_001", geometry = TRUE)
+BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore County",
+             variables = "B19019_001", geometry = FALSE)
 BalCo_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
 moco_annual_buyer <- combined_buyer_annual(county = "Baltimore", state = "MD", key = key)
-BalCo_income_by_tract <- inner_join(BalCo_annual_buyer, moco_tract, by="BUYER_DEA_NO")
+BalCo_income_by_tract <- inner_join(BalCo_annual_buyer, BalCo_tract, by="BUYER_DEA_NO")
 BalCo_income_by_tract <- inner_join(BalCo_income_by_tract, , by = "GEOID")
+Balco_combined_buyer_annual <-combined_buyer_annual(county ="Baltimore", state = "MD", key=key)
+
+Balco_combined_DEA <- BalCo_tract %>%
+  inner_join(Balco_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
 
 
+BalCo_tract_population <- get_acs(geography = "tract", state="MD", county="Baltimore County",
+                            variables =  "B01001_001")
 
+Balco_population_and_DEA <- BalCo_tract_population %>%
+    inner_join(Balco_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(BalCo_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) %>%
+  correlate()
+  
+test <- cor.test(Balco_population_and_DEA$pills_per_person, Balco_population_and_DEA$estimate, method="pearson")
 
 
 ```
+
+```{r}
+
+balcity_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore City",
+             variables = "B19019_001", geometry = FALSE)
+balcity_tract <- pharm_tracts(county = "Baltimore City", state = "MD", key = key)
+balcity_annual_buyer <- combined_buyer_annual(county = "Baltimore City", state = "MD", key = key)
+balcity_combined_buyer_annual <-combined_buyer_annual(county ="Baltimore City", state = "MD", key=key)
+
+balcity_combined_DEA <- balcity_tract %>%
+  inner_join(balcity_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+
+balcity_tract_population <- get_acs(geography = "tract", state="MD", county="Baltimore City",
+                            variables =  "B01001_001")
+
+balcity_population_and_DEA <- balcity_tract_population %>%
+    inner_join(balcity_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(balcity_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) #%>%
+  #correlate()
+  
+test <- cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA$estimate, method="pearson")
+
+print(test)
+
+```
+
+```{r}
+#total pills by county, population by county, income estimate
+
+ national_county_totals <- summarized_county_annual(key=key) %>%
+  group_by(countyfips, BUYER_COUNTY, BUYER_STATE) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT)) %>%
+  inner_join(get_acs(geography = "county", variables = "B01001_001"), by =c("countyfips" = "GEOID")) %>%
+  mutate(pills_per_person= total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(get_acs(geography = "county", variables = "B19019_001", geometry = FALSE), by =c("countyfips" = "GEOID")) %>%
+  ungroup() %>%
+  select(estimate, pills_per_person) #%>%
+  #correlate()
+
+test_r <- cor(national_county_totals$pills_per_person, national_county_totals$estimate)
+test_p <- cor.test(national_county_totals$pills_per_person, national_county_totals$estimate)
+
+print(test_r)
+print(test_p)
+  
+
+
+
+#might leave ZIP code error, tract data for pharmacies not perscribers, compare to other counties
+
+
+```
+
+
+
+
+
+
 
 
 
