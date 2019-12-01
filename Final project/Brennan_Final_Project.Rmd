@@ -117,8 +117,8 @@ balcity_tract_data_working <-
 
 # Load full pipeline data for Baltimore City and Baltimore County. Unsure if it's necessary, but it's here now.
 
-baltimore_city <- county_raw(key=key, state= "MD", county= "Baltimore City")
-baltimore_county <- county_raw(key=key, state= "MD", county= "Baltimore")
+#baltimore_city <- county_raw(key=key, state= "MD", county= "Baltimore City")
+#baltimore_county <- county_raw(key=key, state= "MD", county= "Baltimore")
 
 
 ```
@@ -504,12 +504,17 @@ BalCo_population_and_DEA <- BalCo_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(BalCo_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) %>%
-  correlate()
+  select(pills_per_person, estimate) 
 
 #To circle back to our question — "How is income correlated with the amount of pills per person by tracts in Baltimore County?" — we have our answer. There's some relationship. But let's see how strong it is. 
   
-test <- cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
+BalCo_population_and_DEA %>%
+correlate()
+
+cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
+
+
+#test <- cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
 
 print(test)
 
