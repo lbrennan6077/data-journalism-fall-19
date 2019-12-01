@@ -21,7 +21,8 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, paged.print=TRU
 #install.packages('janitor')
 #install.packages('tidycensus')
 #install.packages('arcos')
-install.packages('corrr')
+#install.packages('corrr')
+#install.packages('curl')
 
 
 library(tidyverse)
@@ -29,12 +30,14 @@ library(janitor)
 library(tidycensus)
 library(arcos)
 library(corrr)
+library(curl)
 
 # store an API key as an object called key
 census_api_key("ee9c9f508567df0be614b71a5c58ebbb21cd991b")
 key <- "uO4EK6I"
 
 # Looking up variables:
+
 acs_variables <- load_variables(2017, "acs5" )
 
 county_geodata <- get_acs(geography = "county",
@@ -471,43 +474,56 @@ maryland_pills_per_year <- arcos_county_pills_per_year %>%
 
 ```{r}
 
-#Question 16
+#Question 16: How is income correlated with the amount of pills per person by tracts in Baltimore County?
 
 #All right, time to get to the fun stuff
 
-#Let's join median household income data from tidycensus with geography data from ARCOS 
+#Let's start by joining median household income data from tidycensus with geography data from ARCOS. 
 
 BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore County",
              variables = "B19019_001", geometry = FALSE)
-BalCo_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
-moco_annual_buyer <- combined_buyer_annual(county = "Baltimore", state = "MD", key = key)
-BalCo_income_by_tract <- inner_join(BalCo_annual_buyer, BalCo_tract, by="BUYER_DEA_NO")
-BalCo_income_by_tract <- inner_join(BalCo_income_by_tract, , by = "GEOID")
-Balco_combined_buyer_annual <-combined_buyer_annual(county ="Baltimore", state = "MD", key=key)
+BalCo_tract <- pharm_tracts(county = "Baltimore County", state = "MD", key = key)
+BalCo_annual_buyer <- combined_buyer_annual(county = "Baltimore County", state = "MD", key = key)
+BalCo_combined_buyer_annual <-combined_buyer_annual(county ="Baltimore County", state = "MD", key=key)
 
-Balco_combined_DEA <- BalCo_tract %>%
+BalCo_combined_DEA <- balco_tract %>%
   inner_join(Balco_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
   group_by(GEOID) %>%
   summarise(total_pills = sum(DOSAGE_UNIT))
+
+#Now that's together. So, we'll need to create a pills per person column, so we're going to pull in some population data to calculate that.
+
+#Once we have those values, we're going to want to join it by income data. Then, we'll assess the correlation.
 
 
 BalCo_tract_population <- get_acs(geography = "tract", state="MD", county="Baltimore County",
                             variables =  "B01001_001")
 
-Balco_population_and_DEA <- BalCo_tract_population %>%
-    inner_join(Balco_combined_DEA, by = c("GEOID")) %>%
+BalCo_population_and_DEA <- BalCo_tract_population %>%
+    inner_join(BalCo_combined_DEA, by = c("GEOID")) %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(BalCo_income_by_tract, by = c("GEOID")) %>%
   select(pills_per_person, estimate) %>%
   correlate()
+
+#To circle back to our question — "How is income correlated with the amount of pills per person by tracts in Baltimore County?" — we have our answer. There's some relationship. But let's see how strong it is. 
   
-test <- cor.test(Balco_population_and_DEA$pills_per_person, Balco_population_and_DEA$estimate, method="pearson")
+test <- cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
+
+print(test)
+
+#Question 17: How strong is the relationship?
+#Answer: Not that strong. This value tells us that _________.
 
 
 ```
 
 ```{r}
+
+#Question 18: How is income correlated with the amount of pills per person by tracts in Baltimore City?
+
+#We'll repeat the same steps that we used for the Baltimore County analysis 
 
 balcity_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore City",
              variables = "B19019_001", geometry = FALSE)
@@ -529,10 +545,16 @@ balcity_population_and_DEA <- balcity_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(balcity_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) #%>%
-  #correlate()
+  select(pills_per_person, estimate) %>%
+  correlate()
+
+#Again, we see there is some relationship — we might be onto something.
   
 test <- cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA$estimate, method="pearson")
+
+#Question 19: How strong is the relationship?
+
+#Again, not very strong. We'll have to see how this plays out nationally to determine whether we're just running around in circles and there's no actual trend — on the county level, or nationally — whatsoever, or whether there is a trend nationally, and Baltimore County and city are departing from it. 
 
 print(test)
 
@@ -540,6 +562,8 @@ print(test)
 
 ```{r}
 #total pills by county, population by county, income estimate
+
+#Question 20: Is there a relationship nationally in counties between income and the amount of pills?
 
  national_county_totals <- summarized_county_annual(key=key) %>%
   group_by(countyfips, BUYER_COUNTY, BUYER_STATE) %>%
@@ -549,20 +573,182 @@ print(test)
   select(-estimate, -moe) %>%
   inner_join(get_acs(geography = "county", variables = "B19019_001", geometry = FALSE), by =c("countyfips" = "GEOID")) %>%
   ungroup() %>%
-  select(estimate, pills_per_person) #%>%
-  #correlate()
+  select(estimate, pills_per_person) %>%
+  correlate()
+
+#Again, we find there is a relationship. Let's see how strong it is.
 
 test_r <- cor(national_county_totals$pills_per_person, national_county_totals$estimate)
 test_p <- cor.test(national_county_totals$pills_per_person, national_county_totals$estimate)
 
 print(test_r)
 print(test_p)
+
+#Question 21: How strong is the relationship?
+#It's strong — strong enough to show there is a national trend between income and pill use. This leaves us with a question though — why don't Baltimore County and city follow it? 
+
+#That could be for any number of reasons, and if we were really reporting on this, we'd go and follow up with sources who could tell us possible variables that would affect the relationship here. Instead, we'll see if we're really onto something by comparing with other nearby Maryland counties — a stronger trend in those places would tell us whether Baltimore County and city are anomalies. 
   
 
 
 
-#might leave ZIP code error, tract data for pharmacies not perscribers, compare to other counties
+#POSSIBLE ERRORS: might leave ZIP code error, tract data for pharmacies not perscribers, compare to other counties
 
+
+```
+
+
+```{r}
+
+#Question 22: Let's compare to Howard. What's the relationship between between income and the amount of pills? 
+
+HoCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Howard",
+             variables = "B19019_001", geometry = FALSE)
+HoCo_tract <- pharm_tracts(county = "Howard", state = "MD", key = key)
+HoCo_annual_buyer <- combined_buyer_annual(county = "Howard", state = "MD", key = key)
+HoCo_combined_buyer_annual <-combined_buyer_annual(county ="Howard", state = "MD", key=key)
+
+HoCo_combined_DEA <- HoCo_tract %>%
+  inner_join(HoCo_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+
+HoCo_tract_population <- get_acs(geography = "tract", state="MD", county="Howard",
+                            variables =  "B01001_001")
+
+HoCo_population_and_DEA <- HoCo_tract_population %>%
+    inner_join(HoCo_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(HoCo_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) %>%
+  correlate()
+
+#FINDINGS ABOUT HOWARD RELATIONSHIP
+  
+test <- cor.test(HoCo_population_and_DEA$pills_per_person, HoCo_population_and_DEA$estimate, method="pearson")
+
+print(test)
+
+#Question 23: FINDINGS ABOUT STRENGTH OF HOWARD RELATIONSHIP
+
+```
+
+```{r}
+
+#Question 24: How about PG? 
+
+PG_income_by_tract <- get_acs(geography = "tract", state="MD", county="Prince George's County",
+             variables = "B19019_001", geometry = FALSE)
+PG_tract <- pharm_tracts(county = "PRINCE GEORGES", state = "MD", key = key)
+PG_annual_buyer <- combined_buyer_annual(county = "PRINCE GEORGES", state = "MD", key = key)
+PG_combined_buyer_annual <-combined_buyer_annual(county ="PRINCE GEORGES", state = "MD", key=key)
+
+PG_combined_DEA <- PG_tract %>%
+  inner_join(PG_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+
+PG_tract_population <- get_acs(geography = "tract", state="MD", county="Prince George's County",
+                            variables =  "B01001_001")
+
+PG_population_and_DEA <- PG_tract_population %>%
+    inner_join(PG_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(PG_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) %>%
+  correlate()
+
+#Question 24: IS THERE A RELATIONSHIP?
+  
+test <- cor.test(PG_population_and_DEA$pills_per_person, PG_population_and_DEA$estimate, method="pearson")
+
+print(test)
+
+#Question 25: STRENGTH OF THAT RELATIONSHIP
+
+
+
+
+
+
+
+```
+
+```{r}
+
+#Question 26: What about Anne Arundel?
+
+AA_income_by_tract <- get_acs(geography = "tract", state="MD", county="Anne Arundel",
+             variables = "B19019_001", geometry = FALSE)
+AA_tract <- pharm_tracts(county = "Anne Arundel", state = "MD", key = key)
+AA_annual_buyer <- combined_buyer_annual(county = "Anne Arundel", state = "MD", key = key)
+AA_combined_buyer_annual <-combined_buyer_annual(county ="Anne Arundel", state = "MD", key=key)
+
+AA_combined_DEA <- AA_tract %>%
+  inner_join(AA_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+
+AA_tract_population <- get_acs(geography = "tract", state="MD", county="Anne Arundel",
+                            variables =  "B01001_001")
+
+AA_population_and_DEA <- AA_tract_population %>%
+    inner_join(AA_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(AA_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) %>%
+  correlate()
+
+#Question 26 answered: IS THERE A RELATIONSHIP
+  
+test <- cor.test(AA_population_and_DEA$pills_per_person, AA_population_and_DEA$estimate, method="pearson")
+
+print(test)
+
+#Question 27: HOW STRONG IS IT
+
+```
+
+```{r}
+
+#Question 28: What about Carroll?
+
+CC_income_by_tract <- get_acs(geography = "tract", state="MD", county="Carroll",
+             variables = "B19019_001", geometry = FALSE)
+CC_tract <- pharm_tracts(county = "Carroll", state = "MD", key = key)
+CC_annual_buyer <- combined_buyer_annual(county = "Carroll", state = "MD", key = key)
+CC_combined_buyer_annual <-combined_buyer_annual(county ="Carroll", state = "MD", key=key)
+
+CC_combined_DEA <- CC_tract %>%
+  inner_join(CC_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+
+CC_tract_population <- get_acs(geography = "tract", state="MD", county="Carroll",
+                            variables =  "B01001_001")
+
+CC_population_and_DEA <- CC_tract_population %>%
+    inner_join(CC_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(CC_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) %>%
+  correlate()
+
+#Question 28: Is there a relationship?
+  
+test <- cor.test(CC_population_and_DEA$pills_per_person, CC_population_and_DEA$estimate, method="pearson")
+
+print(test)
+
+#Question 29: How strong is it?
 
 ```
 
