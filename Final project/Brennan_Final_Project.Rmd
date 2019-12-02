@@ -484,7 +484,8 @@ BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltim
              variables = "B19019_001", geometry = FALSE)
 BalCo_tract <- pharm_tracts(county = "Baltimore County", state = "MD", key = key)
 BalCo_annual_buyer <- combined_buyer_annual(county = "Baltimore County", state = "MD", key = key)
-BalCo_combined_buyer_annual <-combined_buyer_annual(county ="Baltimore County", state = "MD", key=key)
+
+BalCo_combined_buyer_annual <- combined_buyer_annual(county ="Baltimore County", state = "MD", key=key)
 
 BalCo_combined_DEA <- balco_tract %>%
   inner_join(Balco_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
@@ -505,21 +506,20 @@ BalCo_population_and_DEA <- BalCo_tract_population %>%
   select(-estimate, -moe) %>%
   inner_join(BalCo_income_by_tract, by = c("GEOID")) %>%
   select(pills_per_person, estimate) 
-
-#To circle back to our question — "How is income correlated with the amount of pills per person by tracts in Baltimore County?" — we have our answer. There's some relationship. But let's see how strong it is. 
   
 BalCo_population_and_DEA %>%
 correlate()
 
-cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
+#To circle back to our question — "How is income correlated with the amount of pills per person by tracts in Baltimore County?" — we have our answer. There's some relationship. But let's see how strong it is. 
 
+cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
 
 #test <- cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
 
-print(test)
+#print(test)
 
 #Question 17: How strong is the relationship?
-#Answer: Not that strong. This value tells us that _________.
+#Answer: Not that strong. This value tells us that we don't have enough basis to reject the null hypothesis. 
 
 
 ```
@@ -550,16 +550,22 @@ balcity_population_and_DEA <- balcity_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(balcity_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) %>%
-  correlate()
+  select(pills_per_person, estimate) 
+
+balcity_population_and_DEA %>%
+correlate()
 
 #Again, we see there is some relationship — we might be onto something.
-  
-test <- cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA$estimate, method="pearson")
+
+#The number we see here is an r value. R values go from -1 to 1, with a positive value showing a positive relationship (as one value goes up, another goes down), and a negative value shows that as one value goes up the other goes down. An r value of -0.0316 shows we have a weak negative relationship, since the bound there is negative 1.
+
+#But, what's precisely going on with that relationship?
+
+cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA$estimate, method="pearson")
 
 #Question 19: How strong is the relationship?
 
-#Again, not very strong. We'll have to see how this plays out nationally to determine whether we're just running around in circles and there's no actual trend — on the county level, or nationally — whatsoever, or whether there is a trend nationally, and Baltimore County and city are departing from it. 
+#Again, not very strong. With a p-value of .76, we can't reject the null hypothesis (the idea that nothing is happening). We'll have to see how this plays out nationally to determine whether we're just running around in circles and there's no actual trend — on the county level, or nationally — whatsoever, or whether there is a trend nationally, and Baltimore County and city are departing from it. 
 
 print(test)
 
@@ -593,11 +599,7 @@ print(test_p)
 #It's strong — strong enough to show there is a national trend between income and pill use. This leaves us with a question though — why don't Baltimore County and city follow it? 
 
 #That could be for any number of reasons, and if we were really reporting on this, we'd go and follow up with sources who could tell us possible variables that would affect the relationship here. Instead, we'll see if we're really onto something by comparing with other nearby Maryland counties — a stronger trend in those places would tell us whether Baltimore County and city are anomalies. 
-  
 
-
-
-#POSSIBLE ERRORS: might leave ZIP code error, tract data for pharmacies not perscribers, compare to other counties
 
 
 ```
@@ -627,17 +629,18 @@ HoCo_population_and_DEA <- HoCo_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(HoCo_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) %>%
-  correlate()
+  select(pills_per_person, estimate) 
 
-#FINDINGS ABOUT HOWARD RELATIONSHIP
-  
-test <- cor.test(HoCo_population_and_DEA$pills_per_person, HoCo_population_and_DEA$estimate, method="pearson")
+HoCo_population_and_DEA %>%
+correlate()
 
-print(test)
+#There is a relationship! Again, it's negative, so as one value goes up, the other goes down. Let's see how strong it is.
 
-#Question 23: FINDINGS ABOUT STRENGTH OF HOWARD RELATIONSHIP
+cor.test(HoCo_population_and_DEA$pills_per_person, HoCo_population_and_DEA$estimate, method="pearson")
 
+#Question 23: How strong is the relationship?
+
+# The p-value is above 0.05, so we can't reject the null hypothesis. Not a very strong relationship. 
 ```
 
 ```{r}
@@ -664,21 +667,20 @@ PG_population_and_DEA <- PG_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(PG_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) %>%
-  correlate()
+  select(pills_per_person, estimate) 
 
 #Question 24: IS THERE A RELATIONSHIP?
+
+PG_population_and_DEA %>%
+correlate()
+
+#There is a relationship  between income and pills, and it's positive! This is different.
   
-test <- cor.test(PG_population_and_DEA$pills_per_person, PG_population_and_DEA$estimate, method="pearson")
-
-print(test)
-
 #Question 25: STRENGTH OF THAT RELATIONSHIP
 
+cor.test(PG_population_and_DEA$pills_per_person, PG_population_and_DEA$estimate, method="pearson")
 
-
-
-
+#But alas, the p-value is too high. Therefore, we cannot reject the null. :(
 
 
 ```
@@ -707,16 +709,22 @@ AA_population_and_DEA <- AA_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(AA_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) %>%
-  correlate()
+  select(pills_per_person, estimate) 
 
-#Question 26 answered: IS THERE A RELATIONSHIP
+#Question 26 answered: IS THERE A RELATIONSHIP?
+
+AA_population_and_DEA %>%
+correlate()
+
+#There is a relationship, and it's negative -- as one factor goes up, the other goes down. 
   
-test <- cor.test(AA_population_and_DEA$pills_per_person, AA_population_and_DEA$estimate, method="pearson")
 
-print(test)
+#Question 27: HOW STRONG IS IT?
 
-#Question 27: HOW STRONG IS IT
+
+cor.test(AA_population_and_DEA$pills_per_person, AA_population_and_DEA$estimate, method="pearson")
+
+#This p-value, once again, is above 0.05. We can't reject the null. 
 
 ```
 
@@ -744,18 +752,72 @@ CC_population_and_DEA <- CC_tract_population %>%
   mutate(pills_per_person = total_pills/estimate) %>%
   select(-estimate, -moe) %>%
   inner_join(CC_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) %>%
-  correlate()
+  select(pills_per_person, estimate) 
 
 #Question 28: Is there a relationship?
   
-test <- cor.test(CC_population_and_DEA$pills_per_person, CC_population_and_DEA$estimate, method="pearson")
+CC_population_and_DEA %>%
+correlate()
 
-print(test)
+#Again, we see a negative relationship between the two variables, income and pills per person.
+
+
+cor.test(CC_population_and_DEA$pills_per_person, CC_population_and_DEA$estimate, method="pearson")
 
 #Question 29: How strong is it?
 
+#The p-value, again (sigh) is above 0.05. Therefore, we once again cannot reject the null. 
+
 ```
+
+```{r}
+
+#Question 30: Let's give this one last go, and see if we get different results in Harford County. Is there a relationship there?
+
+HarCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Harford",
+             variables = "B19019_001", geometry = FALSE)
+HarCo_tract <- pharm_tracts(county = "Harford", state = "MD", key = key)
+HarCo_annual_buyer <- combined_buyer_annual(county = "Harford", state = "MD", key = key)
+HarCo_combined_buyer_annual <-combined_buyer_annual(county ="Harford", state = "MD", key=key)
+
+HarCo_combined_DEA <- HarCo_tract %>%
+  inner_join(HarCo_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  group_by(GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+HarCo_tract_population <- get_acs(geography = "tract", state="MD", county="Harford",
+                            variables =  "B01001_001")
+
+HarCo_population_and_DEA <- HarCo_tract_population %>%
+    inner_join(HarCo_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(HarCo_income_by_tract, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) 
+
+#Question 30: Is there a relationship?
+  
+HarCo_population_and_DEA %>%
+correlate()
+
+#There is a negative relationship, like most of the other counties (excluding Prince George's)
+
+
+cor.test(HarCo_population_and_DEA$pills_per_person, HarCo_population_and_DEA$estimate, method="pearson")
+
+#Question 31: How strong is it?
+
+#The p-value is ... actually below 0.05?? This relationship is significant! The real question is: why?
+
+```
+
+```{r}
+
+#So, we have some interesting findings -- there's a strong national relationship between income and pills per person that isn't reflected in Baltimore County, city or nearby counties. 
+
+#This could be a significant finding, but we must acknowledge the room for potential errors (there could've been problems with ZIP codes not aligning, the fact that we used tract data for pharmacies and not prescribers, or a slew of other things). Also, there's definitely an issue with the Baltimore County data/ the way it was brought into the project, given that R currently things BalCo_combined_buyer_annual is a list with one thing in it. I've previously run this same code on another computer and it worked just fine, so I need to sort that out. 
+
+#There's also a variety of other factors at work here, other than just income. If there is a strong national relationship between income and pills per person, why might that be? Wealthier people have access to more resources and opportunities than lower-income communities, which may affect the likelihood of opioid addiction, among other factors. If this study were expanded, I'd look into the racial breakdown, perhaps proximity to pharamacies, etc. 
 
 
 
