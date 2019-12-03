@@ -567,7 +567,6 @@ cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA
 
 #Again, not very strong. With a p-value of .76, we can't reject the null hypothesis (the idea that nothing is happening). We'll have to see how this plays out nationally to determine whether we're just running around in circles and there's no actual trend — on the county level, or nationally — whatsoever, or whether there is a trend nationally, and Baltimore County and city are departing from it. 
 
-print(test)
 
 ```
 
