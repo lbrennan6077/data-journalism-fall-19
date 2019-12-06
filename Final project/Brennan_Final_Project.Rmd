@@ -485,10 +485,10 @@ BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltim
 BalCo_tract <- pharm_tracts(county = "Baltimore County", state = "MD", key = key)
 BalCo_annual_buyer <- combined_buyer_annual(county = "Baltimore County", state = "MD", key = key)
 
-BalCo_combined_buyer_annual <- combined_buyer_annual(county ="Baltimore County", state = "MD", key=key)
+BalCo_combined_buyer_annual <- combined_buyer_annual(county ="Baltimore", state = "MD", key=key)
 
 BalCo_combined_DEA <- balco_tract %>%
-  inner_join(Balco_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
+  inner_join(BalCo_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
   group_by(GEOID) %>%
   summarise(total_pills = sum(DOSAGE_UNIT))
 
@@ -583,13 +583,15 @@ cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA
   select(-estimate, -moe) %>%
   inner_join(get_acs(geography = "county", variables = "B19019_001", geometry = FALSE), by =c("countyfips" = "GEOID")) %>%
   ungroup() %>%
-  select(estimate, pills_per_person) %>%
+  select(estimate, pills_per_person)
+
+national_county_totals %>%
   correlate()
 
 #Again, we find there is a relationship. Let's see how strong it is.
 
 test_r <- cor(national_county_totals$pills_per_person, national_county_totals$estimate)
-test_p <- cor.test(national_county_totals$pills_per_person, national_county_totals$estimate)
+test_p <- cor.test(national_county_totals$pills_per_person,national_county_totals$estimate)
 
 print(test_r)
 print(test_p)
@@ -807,6 +809,38 @@ cor.test(HarCo_population_and_DEA$pills_per_person, HarCo_population_and_DEA$est
 #Question 31: How strong is it?
 
 #The p-value is ... actually below 0.05?? This relationship is significant! The real question is: why?
+
+```
+
+
+
+```{r}
+#Checking for relationship between pills and poverty level
+
+HarCo_poverty_variable <- get_acs(geography = "tract", state="MD", county="Harford",
+                            variables =  "B06012_002")
+
+
+HarCo_population_and_poverty <- HarCo_tract_population %>%
+    inner_join(HarCo_combined_DEA, by = c("GEOID")) %>%
+  mutate(pills_per_person = total_pills/estimate) %>%
+  select(-estimate, -moe) %>%
+  inner_join(HarCo_poverty_variable, by = c("GEOID")) %>%
+  select(pills_per_person, estimate) 
+
+HarCo_population_and_poverty %>%
+correlate()
+
+#Some kind of positive relationship
+
+#There is a negative relationship, like most of the other counties (excluding Prince George's)
+
+
+cor.test(HarCo_population_and_poverty$pills_per_person,HarCo_population_and_poverty$estimate, method="pearson")
+
+#Cannot reject null
+
+#Good story starting points, data viz
 
 ```
 
