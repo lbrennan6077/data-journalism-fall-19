@@ -53,448 +53,27 @@ arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
 
 ```
 
-```{r}
 
-
-# Make a dataframe that includes dosage unit information per census tract per year for Baltimore County, along with income per tract per year.
-
-balco_tract_income <- get_acs(geography = "county", state="MD", county = "Baltimore County", variables = "B19019_001", geometry = FALSE)
-
-balco_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
-
-balco_annual_buyer <- combined_buyer_annual(county = "Baltimore", state = "MD", key = key)
-
-balco_tract_data_working <- inner_join(balco_annual_buyer, balco_tract, by="BUYER_DEA_NO")
-
-balco_tract_data_working <- inner_join(balco_tract_data_working, balco_tract_income, by =c("GEOID"))
-
-balco_tract_data_working <- clean_names(balco_tract_data_working)
-
-
-```
-
-```{r}
-
-# Remove unecessary columns.
-
-balco_tract_data_working <-
-  subset(balco_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe))
-
-
-```
-
-```{r}
-
-# Make a dataframe that includes dosage unit information per census tract per year for Baltimore City, along with income per tract per year.
-
-
-balcity_tract_income <- get_acs(geography = "tract", state="MD", county="Baltimore City", variables = "B19019_001", geometry = FALSE)
-
-balcity_tract <- pharm_tracts(county = "Baltimore City", state = "MD", key = key)
-
-balcity_annual_buyer <- combined_buyer_annual(county = "Baltimore City", state = "MD", key = key)
-
-balcity_tract_data_working <- inner_join(balcity_annual_buyer, balcity_tract, by="BUYER_DEA_NO")
-
-balcity_tract_data_working <- inner_join(balcity_tract_data_working, balcity_tract_income, by =c("GEOID"))
-
-balcity_tract_data_working <- clean_names(balcity_tract_data_working)
-
-
-```
-
-```{R}
-
-# Remove unecessary columns.
-
-balcity_tract_data_working <-
-  subset(balcity_tract_data_working, select = c(buyer_dea_no, buyer_county_x, buyer_state_x, year, dosage_unit, affgeoid, geoid, tractce, name_x, lsad, variable, estimate, moe))
-
-
-```
-
-```{r}
-
-# Load full pipeline data for Baltimore City and Baltimore County. Unsure if it's necessary, but it's here now.
-
-#baltimore_city <- county_raw(key=key, state= "MD", county= "Baltimore City")
-#baltimore_county <- county_raw(key=key, state= "MD", county= "Baltimore")
-
-
-```
-
-```{r}
-
-# Clean up all the data that we just loaded (the data that I'm not sure is even necessary).
-
-baltimore_city <- clean_names(baltimore_city)
-baltimore_county <- clean_names(baltimore_county)
-
-#pharmacy = buyer, manufacturer = labeler/company
-
-baltimore_city_working <- baltimore_city %>%
-  rename(manufacturer_name = combined_labeler_name)
-
-baltimore_county_working <- baltimore_county %>%
-  rename(manufacturer_name = combined_labeler_name)
-
-#spaces between some columns and commas between others
-
-baltimore_city_working <- baltimore_city %>%
-  select(contains("buyer")) %>%
- unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip, remove = 'F', sep=" ") 
-
-#I'm putting a space between some columns and a comma between others. 
-
-baltimore_city_working <- baltimore_city %>%
-  mutate(buyer_address_complete = paste0(buyer_address1," ", buyer_city, ", ", buyer_state, " ", buyer_zip)) 
-
-#spaces between some columns and commas between others
-
-
-baltimore_county_working <- baltimore_county %>%
-  select(contains("buyer")) %>%
-  unite(buyer_address_complete, buyer_address1, buyer_city, buyer_state, buyer_zip, remove = 'F', sep=" ") 
-
-#I'm putting a space between some columns and a comma between others. 
-
-baltimore_county_working <- baltimore_county %>%
-  mutate(buyer_address_complete = paste0(buyer_address1," ", buyer_city, ", ", buyer_state, " ", buyer_zip))    
-
-```
-
-```{r}
-
-balco_tract_data_working_2008 <- balco_tract_data_working %>%
-  filter(year=="2008")
-
-```
-
-```{r}
-
-# All right, starting off, I want to examine the highs and lows, comparing the city and the county, to get a sense of the data sets we'll be working with. My end goal is to examine how Baltimore County and City data compares to the national trends by income, race and opioid use. I've heard 2008 was the peak of the crisis, so I'm going to start by exploring some possible trends there.
-
-#Question 1
-
-#How large were the biggest shipments for Baltimore County in 2008?
-
-balco_tract_data_working_2008 <- balco_tract_data_working_2008 %>%
-  mutate(pills_category = case_when(
-         dosage_unit > 10000 ~ "big shipment",
-         dosage_unit < 5000 ~ "midsize shipment",
-         TRUE ~ "small shipment"))
-
-#1,914,740 is the highest result, followed by 1,160,400 and 801,400. Okay, that seems pretty high. I wonder how it compares to Baltimore City. 
-
-```
-
-```{r}
-
-#Question 2
-
-#For Baltimore County: Where did those highest pill counts go in 2008?
-
-view(balco_tract_data_working)
-  
-#The first tract is 420100, the second is 451200 and the third is 492200. I don't have a great idea of where this is yet, but that'll be easy enough to figure out later on.
-  
-```
-
-```{r}
-
-#Question 3
-
-#All right, so that comparison. How large were the biggest shipments for Baltimore City in 2008?
-
-balcity_tract_data_working_2008 <- balcity_tract_data_working %>%
-  filter(year=="2008")
-
-#balcity_tract_data_working_2008 <- balcity_tract_data_working_2008
-        #mutate(pills_category = case_when(
-          #dosage_unit > 10000 ~ "big shipment",
-          #dosage_unit < 5000 ~ "midsize shipment",
-          #TRUE ~ "small shipment"))
-
-#The biggest shipments were for 788,400, 467,840 and 445,600 pills. So, lower than Baltimore County's totals -- but why? Our analysis later on for income, race and opioid use will be helpful for trying to answer this.
-
-# (Side note: It wouldn't let me knit unless I commented this part out, so I'm doing that for the time being.)
-
-```
-
-
-```{r}
-
-#Question 4
-
-#For Baltimore City in 2008: Where did they go?
-
-view(balcity_tract_data_working_2008)
-
-#They went to tracts 260402, 240300 and 271700. Again, we'll figure out location specifics a little later on.
-
-```
 
 
 
 ```{r}
 
-#Question 5
+#I'm interested in examining the relationship between income and pills per person rate by tract for Maryland counties. To do so, I examined relationships between these factors for several of counties in the state and compared them.
 
-#To continue to get a better sense of the data: What are the annual pill totals per year for Baltimore County?
-
-
-balco_yearly_pills <- summarized_county_annual(county="Baltimore", state="MD", key = key)
-
-# In 2006 -- 21,894,869
-# In 2007 -- 25,347,218
-# In 2008 -- 27,664,210
-# In 2009 -- 31,383,950
-# In 2010 -- 34,224,000
-# In 2011 -- 36,536,397
-# In 2012 -- 35,372,927
-
-#All right, that's a pretty steep increase.
-
-
-```
-
-
-```{r}
-
-#Question 6
-
-#What are the annual pill totals per year for Baltimore City?
-
-
-balcity_yearly_pills <- summarized_county_annual(county="Baltimore City", state="MD", key = key)
-
-#In 2006 -- 21,249,353
-#In 2007 -- 16,362,494
-#In 2008 -- 17,359,135
-#In 2009 -- 18,172,455
-#In 2010 -- 19,642,120
-#In 2011 -- 20,262,816
-#In 2012 -- 20,673,130
-
-
-#...and Baltimore City's data is not that steep of an increase. Interesting.
-
-
-```
-
-``` {r}
-
-#Question 7
-
-#Which data tracts have the highest and lowest incomes in Baltimore County?
-
-view(balco_tract_income)
-
-#The highest incomes were in the high hundreds of thousands -- 198158, 167069 and 158908 -- while the lows were all below 40K (11190, 26402 and 35022).
-
-# Later, I want to identify how this correlates to opioid use. Does our assumption that richer people have greater opioid use hold true in Baltimore County?
-
-
-```
-
-
-``` {r}
-
-#Question 8
-
-#Which data tracts have the highest and lowest incomes in Baltimore City?
-
-view(balcity_tract_income)
-
-#The highest incomes were also in the high hundreds of thousands -- 209167, 145966 and 	137275 -- while the lows were all below 15K (14452, 14520 and 14707).
-
-#Wondering about the relationship here as well -- do higher incomes = higher opioid use in Baltimore City?
-
-```
-
-
-```{r}
-
-#Question 9
-
-#What's the pills per person breakdown in Baltimore County in 2008?
-
-balco_2008_pills_per_person <- arcos_county_pills_per_year %>%
-  filter(year=="2008") %>%
-  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
-  mutate(pills_per_person = (dosage_unit/population))
-
-balco_2008_pills_per_person <- balco_2008_pills_per_person %>%
-  filter(buyer_county.x=="BALTIMORE")
-  
-#The average pills per person in Baltimore County in 2008 is 34.63867 pills.
-
-#I don't have a great sense of how much this is until I find what Baltimore City has, and compare across years.
-
-
-```
-
-
-```{r}
-
-#Question  10
-
-#What's the pills per person breakdown in Baltimore City in 2008?
-
-balcity_2008_pills_per_person <- arcos_county_pills_per_year %>%
-  filter(year=="2008") %>%
-  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
-  mutate(pills_per_person = (dosage_unit/population))
-
-balcity_2008_pills_per_person <- balcity_2008_pills_per_person %>%
-  filter(buyer_county.x=="BALTIMORE CITY")
-
-#The average pills per person in Baltimore City in 2008 is 27.9903 pills. Hm, that's a bit lower. Let's see how they compare over time, because the disparity seems a little odd if they used to be close in number.
-
-
-```
-
-```{r}
-
-#Question 11
-
-#What does that look like over the course of multiple years, though? Let's take off the year filter. For Baltimore County:
-
-balco_pills_per_person <- arcos_county_pills_per_year %>%
-  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
-  mutate(pills_per_person = (dosage_unit/population))
-
-balco_pills_per_person <- balco_pills_per_person %>%
-  filter(buyer_county.x=="BALTIMORE")
-
-#2006 -- 27.58468 pills per person
-#2007 -- 31.84032 pills per person
-#2008 -- 34.63867 pills per person
-#2009 -- 39.89331 pills per person
-#2010 -- 42.82309 pills per person
-#2011 -- 45.52896 pills per person
-#2012 -- 43.81536 pills per person
-
-#Here, the low is in 2006, and then it continued to rise through 2012. Okay, now let's look at city data.
-
-
-
-```
-
-```{r}
-
-#Question 12
-
-#Same question, but for Baltimore City:
-
-
-balcity_pills_per_person <- arcos_county_pills_per_year %>%
-  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
-  mutate(pills_per_person = (dosage_unit/population))
-
-balcity_pills_per_person <- balcity_pills_per_person %>%
-  filter(buyer_county.x=="BALTIMORE CITY")
-
-#2006 -- 34.21195 pills per person
-#2007 -- 26.37810 pills per person
-#2008 -- 27.99030 pills per person
-#2009 -- 28.42391 pills per person
-#2010 -- 31.65337 pills per person
-#2011 -- 32.67090 pills per person
-#2012 -- 33.30916 pills per person
-
-#So opioids per person spiked in 2006 here, then decreased, and then stabilized, not increasing much more. Weird. 
-
-
-```
-
-```{r}
-
-#Question 13
-
-#Can we make a ggplot to visualize the Baltimore County data a little better? Let's see.
-
-  ggplot(balco_pills_per_person) +
-  geom_bar(stat="identity", aes(year, pills_per_person), fill="royal blue") +
-  labs(x="Year", y="Total pills", title="Pills steadily raise, peak in 2011 for Baltimore County", subtitle = "Total pills shipped to Baltimore County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
-  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
-  scale_y_continuous()
-
-#Yep. Pills peaked in 2011, but you can see a little more clearly how the shipments raised over time leading up to it.
-
-```
-
-```{r}
-
-#Question 14
-
-#What about Baltimore City? What sort of trends can we visualize with a ggplot?
-
-  ggplot(balcity_pills_per_person) +
-  geom_bar(stat="identity", aes(year, pills_per_person), fill="royal blue") +
-  labs(x="Year", y="Total pills", title="Pills highest in Baltimore City during 2006, then dip before stabilizing", subtitle = "Total pills shipped to Baltimore County by year", caption = "Source: DEA ARCOS database, via Washington Post") +
-  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
-  scale_y_continuous()
-
-#No crazy findings from that, but it does help to see how drastic those changes are, given that we're dealing with some pretty large numbers for both data sets. 
-
-```
-
-```{r}
-
-#Question 15
-
-#What sort of trends do we notice when the data is grouped together visually?
-
-#First, let's make a statewide set so Baltimore City and County data are together.
-
-arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
-  clean_names()
-
-maryland_pills_per_year <- arcos_county_pills_per_year %>%
-  filter(buyer_state == "MD", (buyer_county %in% c("BALTIMORE CITY", "BALTIMORE"))) %>%
-  select(buyer_county, year, dosage_unit)
-
-
-  ggplot(maryland_pills_per_year) +
-  geom_bar(stat="identity", aes(year, dosage_unit, fill=buyer_county)) +
-  labs(x="Year", y="Total pills", title="Opioids see more dramatic rise in Baltimore County than Baltimore City", subtitle = "Total pills per year shipped to Baltimore County and Baltimore City", caption = "Source: DEA ARCOS database, via Washington Post", fill="County") +
-  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
-  facet_wrap(nrow=2, . ~ buyer_county) + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  guides(fill="none")
-  
-  #Baltimore County appears to be almost double 2009 totals for the city. The increase over time in the county is more apparent than in the city. Still, the number of opioids seems noteworthy in both areas. 
-  
-  #This provides a pretty good foundation for our next steps -- comparing to national trends, and identifying which factors may be correlated with these changes. That's all for now, but I'm excited to see what's behind these differences. 
-
-
-```
-
-
-```{r}
-
-#Question 16: How is income correlated with the amount of pills per person by tracts in Baltimore County?
-
-#All right, time to get to the fun stuff
-
-#Let's start by joining median household income data from tidycensus with geography data from ARCOS. 
+#I did this for several counties (including Prince George's, Anne Arundel, Carroll, etc.) and have included one of those code blocks, for Baltimore County, to compare with my Harford findings.They all had weak, negative relationships (except for Prince George's, which had a weak, positive relationship). There was no statistically sound relationship in this block, or in any of the counties but Harford. 
 
 BalCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore County",
              variables = "B19019_001", geometry = FALSE)
-BalCo_tract <- pharm_tracts(county = "Baltimore County", state = "MD", key = key)
+BalCo_tract <- pharm_tracts(county = "Baltimore", state = "MD", key = key)
 BalCo_annual_buyer <- combined_buyer_annual(county = "Baltimore County", state = "MD", key = key)
 
 BalCo_combined_buyer_annual <- combined_buyer_annual(county ="Baltimore", state = "MD", key=key)
 
-BalCo_combined_DEA <- balco_tract %>%
+BalCo_combined_DEA <- BalCo_tract %>%
   inner_join(BalCo_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
   group_by(GEOID) %>%
   summarise(total_pills = sum(DOSAGE_UNIT))
-
-#Now that's together. So, we'll need to create a pills per person column, so we're going to pull in some population data to calculate that.
-
-#Once we have those values, we're going to want to join it by income data. Then, we'll assess the correlation.
 
 
 BalCo_tract_population <- get_acs(geography = "tract", state="MD", county="Baltimore County",
@@ -510,70 +89,16 @@ BalCo_population_and_DEA <- BalCo_tract_population %>%
 BalCo_population_and_DEA %>%
 correlate()
 
-#To circle back to our question — "How is income correlated with the amount of pills per person by tracts in Baltimore County?" — we have our answer. There's some relationship. But let's see how strong it is. 
-
 cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
 
-#test <- cor.test(BalCo_population_and_DEA$pills_per_person, BalCo_population_and_DEA$estimate, method="pearson")
-
-#print(test)
-
-#Question 17: How strong is the relationship?
-#Answer: Not that strong. This value tells us that we don't have enough basis to reject the null hypothesis. 
 
 
 ```
 
-```{r}
-
-#Question 18: How is income correlated with the amount of pills per person by tracts in Baltimore City?
-
-#We'll repeat the same steps that we used for the Baltimore County analysis 
-
-balcity_income_by_tract <- get_acs(geography = "tract", state="MD", county="Baltimore City",
-             variables = "B19019_001", geometry = FALSE)
-balcity_tract <- pharm_tracts(county = "Baltimore City", state = "MD", key = key)
-balcity_annual_buyer <- combined_buyer_annual(county = "Baltimore City", state = "MD", key = key)
-balcity_combined_buyer_annual <-combined_buyer_annual(county ="Baltimore City", state = "MD", key=key)
-
-balcity_combined_DEA <- balcity_tract %>%
-  inner_join(balcity_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
-  group_by(GEOID) %>%
-  summarise(total_pills = sum(DOSAGE_UNIT))
-
-
-balcity_tract_population <- get_acs(geography = "tract", state="MD", county="Baltimore City",
-                            variables =  "B01001_001")
-
-balcity_population_and_DEA <- balcity_tract_population %>%
-    inner_join(balcity_combined_DEA, by = c("GEOID")) %>%
-  mutate(pills_per_person = total_pills/estimate) %>%
-  select(-estimate, -moe) %>%
-  inner_join(balcity_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) 
-
-balcity_population_and_DEA %>%
-correlate()
-
-#Again, we see there is some relationship — we might be onto something.
-
-#The number we see here is an r value. R values go from -1 to 1, with a positive value showing a positive relationship (as one value goes up, another goes down), and a negative value shows that as one value goes up the other goes down. An r value of -0.0316 shows we have a weak negative relationship, since the bound there is negative 1.
-
-#But, what's precisely going on with that relationship?
-
-cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA$estimate, method="pearson")
-
-#Question 19: How strong is the relationship?
-
-#Again, not very strong. With a p-value of .76, we can't reject the null hypothesis (the idea that nothing is happening). We'll have to see how this plays out nationally to determine whether we're just running around in circles and there's no actual trend — on the county level, or nationally — whatsoever, or whether there is a trend nationally, and Baltimore County and city are departing from it. 
-
-
-```
 
 ```{r}
-#total pills by county, population by county, income estimate
 
-#Question 20: Is there a relationship nationally in counties between income and the amount of pills?
+#I wanted to compare the counties to the national trend, and there was one. It's a strong negative relationship — and it's strong enough to show there is a national trend between income and pill use. 
 
  national_county_totals <- summarized_county_annual(key=key) %>%
   group_by(countyfips, BUYER_COUNTY, BUYER_STATE) %>%
@@ -588,192 +113,21 @@ cor.test(balcity_population_and_DEA$pills_per_person, balcity_population_and_DEA
 national_county_totals %>%
   correlate()
 
-#Again, we find there is a relationship. Let's see how strong it is.
-
 test_r <- cor(national_county_totals$pills_per_person, national_county_totals$estimate)
 test_p <- cor.test(national_county_totals$pills_per_person,national_county_totals$estimate)
 
 print(test_r)
 print(test_p)
 
-#Question 21: How strong is the relationship?
-#It's strong — strong enough to show there is a national trend between income and pill use. This leaves us with a question though — why don't Baltimore County and city follow it? 
-
-#That could be for any number of reasons, and if we were really reporting on this, we'd go and follow up with sources who could tell us possible variables that would affect the relationship here. Instead, we'll see if we're really onto something by comparing with other nearby Maryland counties — a stronger trend in those places would tell us whether Baltimore County and city are anomalies. 
-
 
 
 ```
 
 
-```{r}
-
-#Question 22: Let's compare to Howard. What's the relationship between between income and the amount of pills? 
-
-HoCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Howard",
-             variables = "B19019_001", geometry = FALSE)
-HoCo_tract <- pharm_tracts(county = "Howard", state = "MD", key = key)
-HoCo_annual_buyer <- combined_buyer_annual(county = "Howard", state = "MD", key = key)
-HoCo_combined_buyer_annual <-combined_buyer_annual(county ="Howard", state = "MD", key=key)
-
-HoCo_combined_DEA <- HoCo_tract %>%
-  inner_join(HoCo_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
-  group_by(GEOID) %>%
-  summarise(total_pills = sum(DOSAGE_UNIT))
-
-
-HoCo_tract_population <- get_acs(geography = "tract", state="MD", county="Howard",
-                            variables =  "B01001_001")
-
-HoCo_population_and_DEA <- HoCo_tract_population %>%
-    inner_join(HoCo_combined_DEA, by = c("GEOID")) %>%
-  mutate(pills_per_person = total_pills/estimate) %>%
-  select(-estimate, -moe) %>%
-  inner_join(HoCo_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) 
-
-HoCo_population_and_DEA %>%
-correlate()
-
-#There is a relationship! Again, it's negative, so as one value goes up, the other goes down. Let's see how strong it is.
-
-cor.test(HoCo_population_and_DEA$pills_per_person, HoCo_population_and_DEA$estimate, method="pearson")
-
-#Question 23: How strong is the relationship?
-
-# The p-value is above 0.05, so we can't reject the null hypothesis. Not a very strong relationship. 
-```
 
 ```{r}
 
-#Question 24: How about PG? 
-
-PG_income_by_tract <- get_acs(geography = "tract", state="MD", county="Prince George's County",
-             variables = "B19019_001", geometry = FALSE)
-PG_tract <- pharm_tracts(county = "PRINCE GEORGES", state = "MD", key = key)
-PG_annual_buyer <- combined_buyer_annual(county = "PRINCE GEORGES", state = "MD", key = key)
-PG_combined_buyer_annual <-combined_buyer_annual(county ="PRINCE GEORGES", state = "MD", key=key)
-
-PG_combined_DEA <- PG_tract %>%
-  inner_join(PG_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
-  group_by(GEOID) %>%
-  summarise(total_pills = sum(DOSAGE_UNIT))
-
-
-PG_tract_population <- get_acs(geography = "tract", state="MD", county="Prince George's County",
-                            variables =  "B01001_001")
-
-PG_population_and_DEA <- PG_tract_population %>%
-    inner_join(PG_combined_DEA, by = c("GEOID")) %>%
-  mutate(pills_per_person = total_pills/estimate) %>%
-  select(-estimate, -moe) %>%
-  inner_join(PG_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) 
-
-#Question 24: IS THERE A RELATIONSHIP?
-
-PG_population_and_DEA %>%
-correlate()
-
-#There is a relationship  between income and pills, and it's positive! This is different.
-  
-#Question 25: STRENGTH OF THAT RELATIONSHIP
-
-cor.test(PG_population_and_DEA$pills_per_person, PG_population_and_DEA$estimate, method="pearson")
-
-#But alas, the p-value is too high. Therefore, we cannot reject the null. :(
-
-
-```
-
-```{r}
-
-#Question 26: What about Anne Arundel?
-
-AA_income_by_tract <- get_acs(geography = "tract", state="MD", county="Anne Arundel",
-             variables = "B19019_001", geometry = FALSE)
-AA_tract <- pharm_tracts(county = "Anne Arundel", state = "MD", key = key)
-AA_annual_buyer <- combined_buyer_annual(county = "Anne Arundel", state = "MD", key = key)
-AA_combined_buyer_annual <-combined_buyer_annual(county ="Anne Arundel", state = "MD", key=key)
-
-AA_combined_DEA <- AA_tract %>%
-  inner_join(AA_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
-  group_by(GEOID) %>%
-  summarise(total_pills = sum(DOSAGE_UNIT))
-
-
-AA_tract_population <- get_acs(geography = "tract", state="MD", county="Anne Arundel",
-                            variables =  "B01001_001")
-
-AA_population_and_DEA <- AA_tract_population %>%
-    inner_join(AA_combined_DEA, by = c("GEOID")) %>%
-  mutate(pills_per_person = total_pills/estimate) %>%
-  select(-estimate, -moe) %>%
-  inner_join(AA_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) 
-
-#Question 26 answered: IS THERE A RELATIONSHIP?
-
-AA_population_and_DEA %>%
-correlate()
-
-#There is a relationship, and it's negative -- as one factor goes up, the other goes down. 
-  
-
-#Question 27: HOW STRONG IS IT?
-
-
-cor.test(AA_population_and_DEA$pills_per_person, AA_population_and_DEA$estimate, method="pearson")
-
-#This p-value, once again, is above 0.05. We can't reject the null. 
-
-```
-
-```{r}
-
-#Question 28: What about Carroll?
-
-CC_income_by_tract <- get_acs(geography = "tract", state="MD", county="Carroll",
-             variables = "B19019_001", geometry = FALSE)
-CC_tract <- pharm_tracts(county = "Carroll", state = "MD", key = key)
-CC_annual_buyer <- combined_buyer_annual(county = "Carroll", state = "MD", key = key)
-CC_combined_buyer_annual <-combined_buyer_annual(county ="Carroll", state = "MD", key=key)
-
-CC_combined_DEA <- CC_tract %>%
-  inner_join(CC_combined_buyer_annual, by = c("BUYER_DEA_NO")) %>%
-  group_by(GEOID) %>%
-  summarise(total_pills = sum(DOSAGE_UNIT))
-
-
-CC_tract_population <- get_acs(geography = "tract", state="MD", county="Carroll",
-                            variables =  "B01001_001")
-
-CC_population_and_DEA <- CC_tract_population %>%
-    inner_join(CC_combined_DEA, by = c("GEOID")) %>%
-  mutate(pills_per_person = total_pills/estimate) %>%
-  select(-estimate, -moe) %>%
-  inner_join(CC_income_by_tract, by = c("GEOID")) %>%
-  select(pills_per_person, estimate) 
-
-#Question 28: Is there a relationship?
-  
-CC_population_and_DEA %>%
-correlate()
-
-#Again, we see a negative relationship between the two variables, income and pills per person.
-
-
-cor.test(CC_population_and_DEA$pills_per_person, CC_population_and_DEA$estimate, method="pearson")
-
-#Question 29: How strong is it?
-
-#The p-value, again (sigh) is above 0.05. Therefore, we once again cannot reject the null. 
-
-```
-
-```{r}
-
-#Question 30: Let's give this one last go, and see if we get different results in Harford County. Is there a relationship there?
+#Here, I looked for the relationship in Harford County. I found a statistically sound negative relationship here, too. 
 
 HarCo_income_by_tract <- get_acs(geography = "tract", state="MD", county="Harford",
              variables = "B19019_001", geometry = FALSE)
@@ -795,27 +149,21 @@ HarCo_population_and_DEA <- HarCo_tract_population %>%
   select(-estimate, -moe) %>%
   inner_join(HarCo_income_by_tract, by = c("GEOID")) %>%
   select(pills_per_person, estimate) 
-
-#Question 30: Is there a relationship?
   
 HarCo_population_and_DEA %>%
 correlate()
 
-#There is a negative relationship, like most of the other counties (excluding Prince George's)
-
 
 cor.test(HarCo_population_and_DEA$pills_per_person, HarCo_population_and_DEA$estimate, method="pearson")
 
-#Question 31: How strong is it?
-
-#The p-value is ... actually below 0.05?? This relationship is significant! The real question is: why?
+#The p-value is ... actually below 0.05. This relationship is significant! The real question is: why?
 
 ```
 
 
 
 ```{r}
-#Checking for relationship between pills and poverty level
+#Just to see if there's a higher amount of pills concentrated with the least finanllly-resourced, I checked for a relationship between pills and poverty level. There was a relationship, but not one that was strong enough to acknowledge.
 
 HarCo_poverty_variable <- get_acs(geography = "tract", state="MD", county="Harford",
                             variables =  "B06012_002")
@@ -833,26 +181,134 @@ correlate()
 
 #Some kind of positive relationship
 
-#There is a negative relationship, like most of the other counties (excluding Prince George's)
-
 
 cor.test(HarCo_population_and_poverty$pills_per_person,HarCo_population_and_poverty$estimate, method="pearson")
 
 #Cannot reject null
 
-#Good story starting points, data viz
+```
+
+```{r}
+
+#So, we have some interesting findings -- there's a strong national relationship between income and pills per person that is reflected in Harford County, but not Baltimore County, city or nearby counties.
+
+```
+
+
+```{r}
+
+# Now let's see if we can narrow our focus a little more to get further details about Harford County and where it might be good to look as we flesh out our story idea. To do so, let's make a quick dataframe:
+
+HarCo_tract_income <- get_acs(geography = "tract", state="MD", county="Harford", variables = "B19019_001", geometry = FALSE)
+
+HarCo_tract <- pharm_tracts(county = "Harford", state = "MD", key = key)
+
+HarCo_annual_buyer <- combined_buyer_annual(county = "Harford", state = "MD", key = key)
+
+HarCo_tract_data_working <- inner_join(HarCo_annual_buyer, HarCo_tract, by="BUYER_DEA_NO")
+
+HarCo_tract_data_working <- inner_join(HarCo_tract_data_working, HarCo_tract_income, by =c("GEOID"))
+
+HarCo_tract_data_working <- clean_names(HarCo_tract_data_working)
 
 ```
 
 ```{r}
 
-#So, we have some interesting findings -- there's a strong national relationship between income and pills per person that isn't reflected in Baltimore County, city or nearby counties. 
 
-#This could be a significant finding, but we must acknowledge the room for potential errors (there could've been problems with ZIP codes not aligning, the fact that we used tract data for pharmacies and not prescribers, or a slew of other things). Also, there's definitely an issue with the Baltimore County data/ the way it was brought into the project, given that R currently things BalCo_combined_buyer_annual is a list with one thing in it. I've previously run this same code on another computer and it worked just fine, so I need to sort that out. 
+#How large were the biggest shipments for Harford County?
 
-#There's also a variety of other factors at work here, other than just income. If there is a strong national relationship between income and pills per person, why might that be? Wealthier people have access to more resources and opportunities than lower-income communities, which may affect the likelihood of opioid addiction, among other factors. If this study were expanded, I'd look into the racial breakdown, perhaps proximity to pharamacies, etc. 
+HarCo_tract_data_working <- HarCo_tract_data_working %>%
+  mutate(pills_category = case_when(
+         dosage_unit > 10000 ~ "big shipment",
+         dosage_unit < 5000 ~ "midsize shipment",
+         TRUE ~ "small shipment"))
+
+#The largest shipments were for 18,226 pills to Retail Pharmacy 
+
+#What tract did they go to?
+
+#Tract 3051 claimed the top 18 highest values. There, the average income is $91,447 
+
+```
 
 
+```{r}
+
+#To continue to get a better sense of the data: What are the annual pill totals per year for Harford County?
+
+
+HarCo_yearly_pills <- summarized_county_annual(county="Harford", state="MD", key = key)
+
+# In 2006 -- 6988194
+# In 2007 -- 7923129
+# In 2008 -- 9339780
+# In 2009 -- 11143500
+# In 2010 -- 11914050
+# In 2011 -- 12399790
+# In 2012 -- 11416250
+
+#Definitely an increase over time.
+
+```
+
+
+``` {r}
+
+#In the areas with the most pills in Harford County how high are the incomes?
+
+view(HarCo_tract_income)
+
+#Four highest pill counts were for areas that had incomes over $100K
+
+```
+
+```{r}
+
+
+#I made a ggplot to visualize the Harford County data a little better.
+
+HarCo_pills_per_person <- arcos_county_pills_per_year %>%
+  inner_join(arcos_county_population_per_year, by=c("countyfips","year")) %>%
+  mutate(pills_per_person = (dosage_unit/population))
+  
+
+HarCo_pills_per_person <- HarCo_pills_per_person %>%
+  filter(buyer_county.x == "HARFORD")
+
+  ggplot(HarCo_pills_per_person) +
+  geom_bar(stat="identity", aes(year, pills_per_person), fill="royal blue") +
+  labs(x="Year", y="Total pills per person", title="Pills steadily raise, peak in 2011 for Harford County", subtitle = "Pills per person rate in Harford County has gone up each year but 2012", caption = "Source: DEA ARCOS database, via Washington Post") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  scale_y_continuous()
+
+
+```
+
+
+```{r}
+#I was curious whether Harford stood out at all with its influx of pills (whether it'd be among the counties with the highest or lowest shipment amounts). I found that Baltimore County had the highest occurrence, but with no similar relationship with income (given, we're also not looking at per person rate right now).
+
+
+arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
+  clean_names()
+
+maryland_pills_per_year <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", (buyer_county %in% c("HARFORD", "BALTIMORE CITY", "BALTIMORE", "CARROLL" , "ANNE ARUNDEL" , "PRINCE GEORGES", "HOWARD"))) %>%
+  select(buyer_county, year, dosage_unit)
+
+
+  ggplot(maryland_pills_per_year) +
+  geom_bar(stat="identity", aes(year, dosage_unit, fill=buyer_county)) +
+  labs(x="Year", y="Total pills", title="Opioids see more dramatic rise, highest levels in Baltimore County", subtitle = "Total pills per year shipped to several Maryland counties", caption = "Source: DEA ARCOS database, via Washington Post", fill="County") +
+  scale_x_continuous(breaks = c(2006, 2007, 2008, 2009, 2010, 2011, 2012)) +
+  facet_wrap(nrow=2, . ~ buyer_county) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill="none")
+  
+
+
+```
 
 
 
